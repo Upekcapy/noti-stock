@@ -2,7 +2,9 @@ export const env = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  polygonApiKey: process.env.POLYGON_API_KEY ?? "",
+  businessInsiderBaseUrl:
+    process.env.BUSINESS_INSIDER_MARKETS_BASE_URL ??
+    "https://markets.businessinsider.com",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:alerts@notistock.local",
@@ -17,8 +19,6 @@ export const isSupabaseConfigured =
 
 export const isSupabaseAdminConfigured =
   isSupabaseConfigured && hasRealValue(env.supabaseServiceRoleKey);
-
-export const isPolygonConfigured = hasRealValue(env.polygonApiKey);
 
 export const isWebPushConfigured =
   hasRealValue(env.vapidPublicKey) && hasRealValue(env.vapidPrivateKey);

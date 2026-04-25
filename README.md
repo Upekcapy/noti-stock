@@ -13,7 +13,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The app runs with deterministic demo data if Supabase, Polygon, or Web Push keys are missing.
+The app scrapes public Business Insider Markets stock pages every 15 minutes and falls back to deterministic demo data if a page cannot be read.
 
 ## Environment
 
@@ -23,7 +23,7 @@ Copy `env.example` into `.env.local` and fill in the services you want enabled:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-POLYGON_API_KEY=
+BUSINESS_INSIDER_MARKETS_BASE_URL=https://markets.businessinsider.com
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:alerts@notistock.local
@@ -56,7 +56,7 @@ Add the public/private keys to `.env.local`. The service worker lives at `public
 
 ## Alert Checks
 
-The app exposes `GET /api/cron/check-alerts`, configured in `vercel.json` to run every minute. Add `CRON_SECRET` and call the route with:
+The app exposes `GET /api/cron/check-alerts`, configured in `vercel.json` to run every 15 minutes. Add `CRON_SECRET` and call the route with:
 
 ```bash
 Authorization: Bearer your-secret
@@ -67,3 +67,19 @@ For local testing outside market hours:
 ```bash
 http://localhost:3000/api/cron/check-alerts?force=1
 ```
+
+## Stock Data
+
+Stock quotes and chart identifiers are scraped from public Business Insider Markets quote pages such as:
+
+```bash
+https://markets.businessinsider.com/stocks/aapl-stock
+```
+
+The scraper reads the page HTML, parses the quote config, snapshot table, `TKData`, and `InstrumentType`, then calls Business Insider's chart endpoint for graph history:
+
+```bash
+https://markets.businessinsider.com/Ajax/Chart_GetChartData?instrumentType=Share&tkData=67,908440,67,333&from=20221225&to=20260425
+```
+
+All Business Insider fetches use Next.js caching with a 15-minute revalidation window.

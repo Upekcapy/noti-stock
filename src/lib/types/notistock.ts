@@ -26,7 +26,27 @@ export type StockQuote = {
   changePercent: number;
   currency: string;
   updatedAt: string;
-  source: "polygon" | "demo";
+  source: "business-insider" | "demo";
+  sourceUrl?: string;
+  details?: StockDetails;
+};
+
+export type StockDetails = {
+  bid?: number;
+  ask?: number;
+  open?: number;
+  previousClose?: number;
+  dayLow?: number;
+  dayHigh?: number;
+  week52Low?: number;
+  week52High?: number;
+  volume?: string;
+  marketCap?: string;
+  sharesOutstanding?: string;
+  dividend?: number;
+  dividendYield?: number;
+  peRatio?: number;
+  eps?: number;
 };
 
 export type StockHistoryPoint = {

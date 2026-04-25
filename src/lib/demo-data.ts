@@ -15,6 +15,16 @@ const DEMO_STOCKS: Array<StockSearchResult & { base: number; trend: number }> = 
   { symbol: "META", name: "Meta Platforms, Inc.", market: "NASDAQ", base: 492.31, trend: 1.4 },
   { symbol: "SHOP", name: "Shopify Inc.", market: "NYSE", base: 74.66, trend: -0.2 },
   { symbol: "RY", name: "Royal Bank of Canada", market: "NYSE", base: 103.24, trend: 0.4 },
+  { symbol: "JPM", name: "JPMorgan Chase & Co.", market: "NYSE", base: 247.83, trend: 0.8 },
+  { symbol: "V", name: "Visa Inc.", market: "NYSE", base: 346.42, trend: 0.7 },
+  { symbol: "MA", name: "MasterCard Inc.", market: "NYSE", base: 536.18, trend: 0.9 },
+  { symbol: "WMT", name: "Walmart Inc.", market: "NYSE", base: 97.38, trend: 0.4 },
+  { symbol: "UNH", name: "UnitedHealth Group Inc.", market: "NYSE", base: 525.9, trend: -0.3 },
+  { symbol: "HD", name: "Home Depot Inc.", market: "NYSE", base: 376.14, trend: 0.2 },
+  { symbol: "PG", name: "Procter & Gamble Co.", market: "NYSE", base: 166.75, trend: 0.1 },
+  { symbol: "KO", name: "Coca-Cola Co.", market: "NYSE", base: 68.62, trend: 0.2 },
+  { symbol: "BAC", name: "Bank of America Corp.", market: "NYSE", base: 38.94, trend: 0.5 },
+  { symbol: "COST", name: "Costco Wholesale Corp.", market: "NASDAQ", base: 947.55, trend: 0.8 },
 ];
 
 const RANGE_COUNTS: Record<StockRange, number> = {
@@ -51,13 +61,13 @@ export function getDemoStockMeta(symbol: string) {
 
 export function searchDemoStocks(query: string): StockSearchResult[] {
   const normalized = query.trim().toUpperCase();
-  if (!normalized) return DEMO_STOCKS.slice(0, 6);
+  if (!normalized) return DEMO_STOCKS.slice(0, 24);
 
   return DEMO_STOCKS.filter(
     (stock) =>
       stock.symbol.includes(normalized) ||
       stock.name.toUpperCase().includes(normalized),
-  ).slice(0, 8);
+  ).slice(0, 16);
 }
 
 export function getDemoQuote(symbol: string): StockQuote {

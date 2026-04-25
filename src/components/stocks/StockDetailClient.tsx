@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BellPlus, Loader2, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  BellPlus,
+  ExternalLink,
+  Loader2,
+  Plus,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
 import { StockLineChart } from "@/components/charts/StockLineChart";
 import {
@@ -10,7 +17,7 @@ import {
   type StockQuote,
   type StockRange,
 } from "@/lib/types/notistock";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime, formatPercent } from "@/lib/utils";
 
 export function StockDetailClient({ symbol }: { symbol: string }) {
   const [range, setRange] = useState<StockRange>("1D");
@@ -56,6 +63,25 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
             {symbol}
           </h1>
           <p className="mt-1 text-slate-500">{quote?.name ?? symbol}</p>
+          {quote ? (
+            <p className="mt-2 text-sm text-slate-500">
+              Source:{" "}
+              {quote.sourceUrl ? (
+                <a
+                  className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
+                  href={quote.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Business Insider
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="font-semibold">Demo data</span>
+              )}{" "}
+              updated {formatDateTime(quote.updatedAt)}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -123,6 +149,56 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
           <StockLineChart points={points} />
         </div>
       </section>
+
+      {quote?.details ? <StockDetailsGrid quote={quote} /> : null}
     </div>
   );
+}
+
+function StockDetailsGrid({ quote }: { quote: StockQuote }) {
+  const details = quote.details;
+  if (!details) return null;
+
+  const rows = [
+    ["Open", formatOptionalCurrency(details.open)],
+    ["Prev. close", formatOptionalCurrency(details.previousClose)],
+    ["Bid", formatOptionalCurrency(details.bid)],
+    ["Ask", formatOptionalCurrency(details.ask)],
+    ["Day low", formatOptionalCurrency(details.dayLow)],
+    ["Day high", formatOptionalCurrency(details.dayHigh)],
+    ["52 week low", formatOptionalCurrency(details.week52Low)],
+    ["52 week high", formatOptionalCurrency(details.week52High)],
+    ["Volume", details.volume ?? "-"],
+    ["Market cap", details.marketCap ?? "-"],
+    ["Shares", details.sharesOutstanding ?? "-"],
+    ["P/E ratio", formatOptionalNumber(details.peRatio)],
+    ["EPS", formatOptionalCurrency(details.eps)],
+    ["Dividend", formatOptionalCurrency(details.dividend)],
+    [
+      "Dividend yield",
+      details.dividendYield === undefined ? "-" : `${details.dividendYield.toFixed(2)}%`,
+    ],
+  ];
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="font-semibold text-slate-950">Business Insider stock details</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatOptionalCurrency(value: number | undefined) {
+  return value === undefined ? "-" : formatCurrency(value);
+}
+
+function formatOptionalNumber(value: number | undefined) {
+  return value === undefined ? "-" : value.toFixed(2);
 }
