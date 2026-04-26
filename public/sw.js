@@ -16,10 +16,11 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "NotiStock", {
       body: data.body || "A price alert was triggered.",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      icon: "/icon-192.png",
+      badge: "/badge-96.png",
       tag: data.symbol ? `notistock-${data.symbol}` : "notistock-alert",
       renotify: true,
+      timestamp: Date.now(),
       data: {
         url: data.url || "/notifications",
         symbol: data.symbol,

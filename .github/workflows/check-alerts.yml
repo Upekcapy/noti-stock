@@ -1,0 +1,21 @@
+name: Check stock alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Trigger alert check
+        run: |
+          curl --fail --show-error --silent --max-time 60 --retry 2 --retry-delay 10 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${NOTISTOCK_CRON_URL}"
+        env:
+          NOTISTOCK_CRON_URL: ${{ secrets.NOTISTOCK_CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       targetPrice: alert.targetPrice,
       triggerPrice: quote.price,
       deliveryStatus: sent ? "sent" : simulated ? "simulated" : "failed",
-      errorMessage: sent || simulated ? null : firstError,
+      errorMessage: firstError,
     });
   }
 

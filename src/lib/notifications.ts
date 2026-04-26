@@ -42,7 +42,7 @@ export async function sendPushNotification(
     return {
       ok: false,
       simulated: false,
-      error: error instanceof Error ? error.message : "Unknown push failure",
+      error: formatPushError(error),
       expired: isExpiredSubscriptionError(error),
     };
   }
@@ -74,4 +74,21 @@ function isExpiredSubscriptionError(error: unknown) {
     "statusCode" in error &&
     (error.statusCode === 404 || error.statusCode === 410)
   );
+}
+
+function formatPushError(error: unknown) {
+  if (error instanceof Error) {
+    const statusCode =
+      "statusCode" in error && typeof error.statusCode === "number"
+        ? ` (${error.statusCode})`
+        : "";
+    const body =
+      "body" in error && typeof error.body === "string" && error.body
+        ? `: ${error.body}`
+        : "";
+
+    return `${error.message}${statusCode}${body}`;
+  }
+
+  return "Unknown push failure";
 }

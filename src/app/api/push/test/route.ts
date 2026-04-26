@@ -19,49 +19,76 @@ const TEST_STOCKS = [
 ];
 
 export async function POST() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = await createServerSupabaseClient();
-  const subscriptions = await listPushSubscriptions(supabase, user.id);
-  const stock = TEST_STOCKS[Math.floor(Math.random() * TEST_STOCKS.length)] ?? TEST_STOCKS[0];
-  const payload = {
-    title: `${stock.symbol} reached ${formatCurrency(stock.price)}`,
-    body: `Test alert: ${stock.symbol} crossed your NotiStock target.`,
-    symbol: stock.symbol,
-    url: `/stocks/${stock.symbol}`,
-  };
+    const supabase = await createServerSupabaseClient();
+    const subscriptions = await listPushSubscriptions(supabase, user.id);
+    const stock = TEST_STOCKS[Math.floor(Math.random() * TEST_STOCKS.length)] ?? TEST_STOCKS[0];
+    const payload = {
+      title: `${stock.symbol} reached ${formatCurrency(stock.price)}`,
+      body: `Test alert: ${stock.symbol} crossed your NotiStock target.`,
+      symbol: stock.symbol,
+      url: `/stocks/${stock.symbol}`,
+    };
 
-  const results = await Promise.all(
-    subscriptions.map((subscription) => sendPushNotification(subscription, payload)),
-  );
-  await Promise.all(
-    subscriptions.map((subscription, index) => {
-      if (!results[index]?.expired) return Promise.resolve();
-      return removePushSubscription(supabase, user.id, subscription.endpoint);
-    }),
-  );
+    const results = await Promise.all(
+      subscriptions.map((subscription) => sendPushNotification(subscription, payload)),
+    );
+    const expiredRemoved = results.filter((result) => result.expired).length;
+    const sent = results.filter((result) => result.ok).length;
+    const failed = results.filter(
+      (result) => !result.ok && !result.simulated && !result.expired,
+    ).length;
+    await Promise.all(
+      subscriptions.map((subscription, index) => {
+        if (!results[index]?.expired) return Promise.resolve();
+        return removePushSubscription(supabase, user.id, subscription.endpoint);
+      }),
+    );
 
-  const hasSent = results.some((result) => result.ok);
-  const simulated = subscriptions.length === 0 || results.some((result) => result.simulated);
-  const firstError = results.find((result) => result.error)?.error ?? null;
+    const hasSent = sent > 0;
+    const simulated = subscriptions.length === 0 || results.some((result) => result.simulated);
+    const firstError = results.find((result) => result.error)?.error ?? null;
 
-  await addNotification(supabase, user.id, {
-    alertId: null,
-    symbol: stock.symbol,
-    title: payload.title,
-    body: payload.body,
-    targetPrice: stock.price,
-    triggerPrice: stock.price,
-    deliveryStatus: hasSent ? "sent" : simulated ? "simulated" : "failed",
-    errorMessage: hasSent || simulated ? null : firstError,
-  });
+    await addNotification(supabase, user.id, {
+      alertId: null,
+      symbol: stock.symbol,
+      title: payload.title,
+      body: payload.body,
+      targetPrice: stock.price,
+      triggerPrice: stock.price,
+      deliveryStatus: hasSent ? "sent" : simulated ? "simulated" : "failed",
+      errorMessage: firstError,
+    });
 
-  return NextResponse.json({
-    ok: hasSent || simulated,
-    sent: results.filter((result) => result.ok).length,
-    simulated,
-    subscriptions: subscriptions.length,
-    payload,
-  });
+    return NextResponse.json({
+      ok: hasSent || simulated,
+      sent,
+      simulated,
+      subscriptions: subscriptions.length,
+      expiredRemoved,
+      failed,
+      error: firstError,
+      payload,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        sent: 0,
+        simulated: false,
+        subscriptions: 0,
+        expiredRemoved: 0,
+        failed: 0,
+        error: formatRouteError(error),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+function formatRouteError(error: unknown) {
+  return error instanceof Error ? error.message : "Could not send test notification.";
 }
