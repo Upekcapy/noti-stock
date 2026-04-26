@@ -22,7 +22,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
 
   if (!user?.email) return null;
 
-  return {
+  const appUser = {
     id: user.id,
     email: user.email,
     name:
@@ -30,6 +30,10 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       (user.user_metadata?.name as string | undefined) ??
       user.email.split("@")[0],
   };
+
+  await ensureUserProfile(supabase, appUser);
+
+  return appUser;
 }
 
 export async function requireCurrentUser() {
@@ -40,4 +44,30 @@ export async function requireCurrentUser() {
   }
 
   return user;
+}
+
+async function ensureUserProfile(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  user: AppUser,
+) {
+  if (!supabase) return;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error || data) {
+    if (error) console.error("Could not read user profile", error);
+    return;
+  }
+
+  const { error: insertError } = await supabase.from("profiles").insert({
+    id: user.id,
+    email: user.email,
+    full_name: user.name,
+  });
+
+  if (insertError) console.error("Could not create user profile", insertError);
 }

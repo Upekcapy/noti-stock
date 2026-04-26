@@ -13,6 +13,7 @@ export function AlertsClient() {
   const [targetPrice, setTargetPrice] = useState("");
   const [direction, setDirection] = useState<AlertDirection>("above");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -29,20 +30,28 @@ export function AlertsClient() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage("");
     const method = editingId ? "PATCH" : "POST";
     const url = editingId ? `/api/alerts/${editingId}` : "/api/alerts";
 
-    await fetch(url, {
+    const response = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol, targetPrice: Number(targetPrice), direction }),
     });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setMessage(data?.error ?? "Could not save alert.");
+      return;
+    }
 
     setEditingId(null);
     setSymbol("");
     setTargetPrice("");
     setDirection("above");
     await refresh();
+    setMessage(editingId ? "Alert was updated." : "Alert was created.");
   }
 
   function edit(alert: PriceAlert) {
@@ -88,6 +97,12 @@ export function AlertsClient() {
           </div>
 
           <div className="mt-4 space-y-4">
+            {message ? (
+              <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
+                {message}
+              </p>
+            ) : null}
+
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Symbol</span>
               <input

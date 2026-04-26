@@ -83,7 +83,9 @@ export async function getBusinessInsiderHistory(
     return getDemoHistory(symbol, range);
   }
 
-  const points = await fetchBusinessInsiderChartData(chartViewModel, range);
+  const priceSection = extractPriceSection(html);
+  const referenceDate = parseBusinessInsiderTime(priceSection?.time);
+  const points = await fetchBusinessInsiderChartData(chartViewModel, range, referenceDate);
 
   return points.length > 1 ? points : getDemoHistory(symbol, range);
 }
@@ -172,12 +174,17 @@ function extractChartViewModel(html: string): BusinessInsiderChartViewModel | nu
 async function fetchBusinessInsiderChartData(
   viewModel: BusinessInsiderChartViewModel,
   range: StockRange,
+  referenceDate: Date,
 ) {
-  const rangeDates = getDateRange(range);
+  const rangeDates = getDateRange(range, referenceDate);
   const url = new URL("/Ajax/Chart_GetChartData", env.businessInsiderBaseUrl);
+  const tkData =
+    range === "1D" && viewModel.intradayTkData
+      ? viewModel.intradayTkData
+      : viewModel.TKData ?? "";
 
   url.searchParams.set("instrumentType", viewModel.InstrumentType ?? "Share");
-  url.searchParams.set("tkData", viewModel.TKData ?? "");
+  url.searchParams.set("tkData", tkData);
   url.searchParams.set("from", formatBusinessInsiderDate(rangeDates.from));
   url.searchParams.set("to", formatBusinessInsiderDate(rangeDates.to));
 
@@ -195,7 +202,7 @@ async function fetchBusinessInsiderChartData(
 
     const rows = (await response.json()) as BusinessInsiderChartRow[];
 
-    return rows
+    const points = rows
       .map((row) => {
         const time = parseChartDate(row.Date);
         const value = Number(row.Close);
@@ -208,6 +215,16 @@ async function fetchBusinessInsiderChartData(
         };
       })
       .filter((point): point is StockHistoryPoint => Boolean(point));
+
+    if (points.length <= 1 && range === "1D" && tkData !== viewModel.TKData && viewModel.TKData) {
+      return fetchBusinessInsiderChartData(
+        { ...viewModel, intradayTkData: undefined },
+        range,
+        referenceDate,
+      );
+    }
+
+    return points;
   } catch {
     return [];
   }
@@ -246,11 +263,11 @@ function extractSnapshotDetails(html: string): StockDetails {
   return details;
 }
 
-function getDateRange(range: StockRange): DateRange {
-  const to = new Date();
+function getDateRange(range: StockRange, referenceDate: Date): DateRange {
+  const to = new Date(referenceDate);
   const from = new Date(to);
 
-  if (range === "1D") from.setDate(from.getDate() - 1);
+  if (range === "1D") return { from, to };
   if (range === "7D") from.setDate(from.getDate() - 7);
   if (range === "1M") from.setMonth(from.getMonth() - 1);
   if (range === "3M") from.setMonth(from.getMonth() - 3);

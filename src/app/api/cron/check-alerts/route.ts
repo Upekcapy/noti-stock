@@ -5,6 +5,7 @@ import {
   listPushSubscriptions,
   markAlertChecked,
   markAlertTriggered,
+  removePushSubscription,
 } from "@/lib/app-data";
 import { env, isWebPushConfigured } from "@/lib/env";
 import { sendPushNotification } from "@/lib/notifications";
@@ -55,6 +56,12 @@ export async function GET(request: Request) {
     };
     const sends = await Promise.all(
       subscriptions.map((subscription) => sendPushNotification(subscription, payload)),
+    );
+    await Promise.all(
+      subscriptions.map((subscription, index) => {
+        if (!sends[index]?.expired) return Promise.resolve();
+        return removePushSubscription(supabase, alert.userId, subscription.endpoint);
+      }),
     );
     const sent = sends.some((result) => result.ok);
     const simulated = !isWebPushConfigured || subscriptions.length === 0;
