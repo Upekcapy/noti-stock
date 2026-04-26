@@ -5,9 +5,7 @@ export const env = {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  businessInsiderBaseUrl:
-    process.env.BUSINESS_INSIDER_MARKETS_BASE_URL ??
-    "https://markets.businessinsider.com",
+  finnhubApiKey: process.env.FINNHUB_API_KEY ?? "",
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:alerts@notistock.local",
@@ -22,6 +20,8 @@ export const isSupabaseConfigured =
 
 export const isSupabaseAdminConfigured =
   isSupabaseConfigured && hasRealValue(env.supabaseServiceRoleKey);
+
+export const isFinnhubConfigured = hasRealValue(env.finnhubApiKey);
 
 export const isWebPushConfigured =
   hasRealValue(env.vapidPublicKey) && hasRealValue(env.vapidPrivateKey);

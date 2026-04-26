@@ -11,6 +11,7 @@ import { env, isWebPushConfigured } from "@/lib/env";
 import { sendPushNotification } from "@/lib/notifications";
 import { getStockQuote } from "@/lib/stocks";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import type { StockQuote } from "@/lib/types/notistock";
 import { isAboveTarget, isBelowTarget, formatCurrency } from "@/lib/utils";
 
 export async function GET(request: Request) {
@@ -29,9 +30,20 @@ export async function GET(request: Request) {
   const supabase = createSupabaseAdminClient();
   const alerts = await listActiveAlertsForCron(supabase);
   let triggered = 0;
+  let checked = 0;
+  let skippedDemoData = 0;
+  const quotesBySymbol = await getQuotesForAlerts(
+    Array.from(new Set(alerts.map((alert) => alert.symbol))),
+  );
 
   for (const alert of alerts) {
-    const quote = await getStockQuote(alert.symbol);
+    const quote = quotesBySymbol.get(alert.symbol);
+    if (!quote || quote.source === "demo") {
+      skippedDemoData += 1;
+      continue;
+    }
+
+    checked += 1;
     const crossed =
       alert.direction === "above"
         ? isAboveTarget(quote.price, alert.targetPrice)
@@ -79,7 +91,17 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ checked: alerts.length, triggered });
+  return NextResponse.json({ checked, triggered, skippedDemoData });
+}
+
+async function getQuotesForAlerts(symbols: string[]) {
+  const quotes = new Map<string, StockQuote>();
+
+  for (const symbol of symbols) {
+    quotes.set(symbol, await getStockQuote(symbol, { includeProfile: false }));
+  }
+
+  return quotes;
 }
 
 function isMarketCheckWindow(date: Date) {
