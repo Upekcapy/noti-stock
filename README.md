@@ -13,7 +13,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The app uses Finnhub's official market data API for stock search, quotes, and charts. If Finnhub is not configured or a request fails, the UI falls back to deterministic demo data.
+The app uses Finnhub's official market data API for stock search and live quotes. Charts use Finnhub candles when available, then Nasdaq public chart data as a real-data fallback. If live data is not configured or fails, the UI can fall back to demo data, but real alert notifications are skipped unless a live Finnhub quote is available.
 
 ## Environment
 
@@ -82,7 +82,16 @@ Use the same VAPID key pair in production for as long as possible. Changing VAPI
 
 ## Alert Checks
 
-The app exposes `GET /api/cron/check-alerts`, configured in `vercel.json` to run every 15 minutes. Add `CRON_SECRET` and call the route with:
+The app exposes `GET /api/cron/check-alerts` for scheduled alert checks. Vercel Hobby cron is daily-only, so this repo does not use Vercel Cron for the MVP. Instead, `.github/workflows/check-alerts.yml` calls the endpoint every 15 minutes from GitHub Actions.
+
+Add these GitHub repository secrets before relying on scheduled alert checks:
+
+```bash
+NOTISTOCK_CRON_URL=https://your-production-domain.com/api/cron/check-alerts
+CRON_SECRET=your-secret
+```
+
+The `CRON_SECRET` value must match the production environment variable in Vercel. The workflow sends it as:
 
 ```bash
 Authorization: Bearer your-secret
@@ -96,11 +105,9 @@ https://localhost:3000/api/cron/check-alerts?force=1
 
 The cron route needs `SUPABASE_SERVICE_ROLE_KEY` or a Supabase `sb_secret_...` key so it can check all users' active alerts. It also needs `FINNHUB_API_KEY` for live market data. Keep both keys server-only.
 
-When `CRON_SECRET` is configured in Vercel, Vercel Cron calls include an `Authorization: Bearer <CRON_SECRET>` header automatically.
-
 ## Production Deployment
 
-Deploy over HTTPS before asking real users to install the PWA. Vercel is the expected target because `vercel.json` schedules `/api/cron/check-alerts` every 15 minutes.
+Deploy over HTTPS before asking real users to install the PWA. Vercel is the expected target for hosting the app. Alert checks are scheduled by GitHub Actions so the Vercel Hobby deployment can stay on the free plan.
 
 Set these environment variables in Vercel:
 
@@ -124,9 +131,11 @@ npm run build
 
 After deployment, create a real account, enable notifications from `/settings`, create a crossed alert, and verify that `/api/cron/check-alerts?force=1` records a notification. If `CRON_SECRET` is set, include `Authorization: Bearer your-secret` for manual calls. Alerts are skipped when only demo fallback data is available, so configure `FINNHUB_API_KEY` before testing real alert delivery.
 
+GitHub scheduled workflows only run from the repository's default branch. After merging this workflow, confirm the repository has the two secrets above, then use the workflow's manual `Run workflow` button once to verify it can reach production.
+
 ## Stock Data
 
-Stock quotes, ticker search, and chart history come from Finnhub's official API:
+Stock quotes and ticker search come from Finnhub's official API:
 
 ```bash
 https://finnhub.io/docs/api
