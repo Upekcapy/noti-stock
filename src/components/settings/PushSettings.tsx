@@ -55,6 +55,7 @@ type PushTestResponse = {
   failed: number;
   payload?: { title: string };
   error?: string;
+  notificationHistoryError?: string | null;
 };
 
 const initialDeviceInfo: DeviceInfo = {
@@ -729,14 +730,20 @@ function mapTestTone(status: TestStatus): SetupTone {
 
 function getTestDescription(status: TestStatus, counts: PushTestResponse | null) {
   if (status === "sent") {
-    return `Server sent a real push to ${counts?.sent ?? 0} device(s).`;
+    return counts?.notificationHistoryError
+      ? `Push sent, but history failed: ${counts.notificationHistoryError}`
+      : `Server sent a real push to ${counts?.sent ?? 0} device(s).`;
   }
 
   if (status === "simulated") {
-    return `No real phone push was sent. Subscriptions: ${counts?.subscriptions ?? 0}.`;
+    return counts?.notificationHistoryError
+      ? `Simulated, but history failed: ${counts.notificationHistoryError}`
+      : `No real phone push was sent. Subscriptions: ${counts?.subscriptions ?? 0}.`;
   }
 
   if (status === "failed") {
+    if (counts?.error) return `Test failed: ${counts.error}`;
+
     return `Test failed. Failed: ${counts?.failed ?? 0}, expired removed: ${
       counts?.expiredRemoved ?? 0
     }.`;
