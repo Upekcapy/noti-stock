@@ -33,6 +33,16 @@ export async function getStockQuote(
   return (await getFinnhubQuote(symbol, options)) ?? getDemoQuote(symbol);
 }
 
+export async function getLiveStockQuote(
+  symbolInput: string,
+  options?: FinnhubQuoteOptions,
+): Promise<StockQuote | null> {
+  const symbol = normalizeSymbol(symbolInput);
+  if (!symbol) return null;
+
+  return getFinnhubQuote(symbol, options);
+}
+
 export async function getStockHistory(
   symbolInput: string,
   range: StockRange,

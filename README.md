@@ -70,13 +70,14 @@ Add the public/private keys to `.env.local`. The service worker lives at `public
 ### Android PWA flow
 
 1. Deploy NotiStock over HTTPS, such as Vercel.
-2. Open the site in Android Chrome.
-3. Go to `/settings`.
-4. Install NotiStock as a PWA.
-5. Enable notifications.
-6. Send a random test alert.
+2. Open the production URL in Android Chrome.
+3. Install NotiStock from Chrome's install prompt or browser menu.
+4. Open NotiStock from the home-screen icon and log in.
+5. Go to `/settings`.
+6. Tap Enable, then Send test.
+7. Confirm the phone receives the test notification and `/notifications` records `sent`.
 
-The Settings page shows whether the current device is installed, unsupported, blocked, unsubscribed, missing VAPID keys, or subscribed. Test notifications use fake stock-style messages, while real alerts are still delivered by `/api/cron/check-alerts`.
+The Settings page shows the phone setup status for the secure origin, Android Chrome support, PWA install state, notification permission, service worker, saved Supabase subscription, and the last random test. Test notifications use stock-style messages, while real alerts are still delivered by `/api/cron/check-alerts`.
 
 Use the same VAPID key pair in production for as long as possible. Changing VAPID keys can require users to resubscribe devices.
 
@@ -103,7 +104,7 @@ For local testing outside market hours:
 https://localhost:3000/api/cron/check-alerts?force=1
 ```
 
-The cron route needs `SUPABASE_SERVICE_ROLE_KEY` or a Supabase `sb_secret_...` key so it can check all users' active alerts. It also needs `FINNHUB_API_KEY` for live market data. Keep both keys server-only.
+The cron route needs `SUPABASE_SERVICE_ROLE_KEY` or a Supabase `sb_secret_...` key so it can check all users' active alerts. It also needs `FINNHUB_API_KEY` for live market data. Keep both keys server-only. New alerts require a live Finnhub quote, so fake/demo symbols cannot be saved for real notifications.
 
 ## Production Deployment
 
@@ -132,6 +133,8 @@ npm run build
 After deployment, create a real account, enable notifications from `/settings`, create a crossed alert, and verify that `/api/cron/check-alerts?force=1` records a notification. If `CRON_SECRET` is set, include `Authorization: Bearer your-secret` for manual calls. Alerts are skipped when only demo fallback data is available, so configure `FINNHUB_API_KEY` before testing real alert delivery.
 
 GitHub scheduled workflows only run from the repository's default branch. After merging this workflow, confirm the repository has the two secrets above, then use the workflow's manual `Run workflow` button once to verify it can reach production.
+
+For the first phone reliability test, use Android Chrome against the production Vercel URL. Localhost can check the UI on desktop, but a real phone subscription should be created from the HTTPS production origin that users will keep using.
 
 ## Stock Data
 
