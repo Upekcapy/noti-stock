@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type AuthMode = "login" | "register";
+const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
@@ -14,8 +15,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const isRegister = mode === "register";
+  const waitingForEmailConfirmation = isRegister && Boolean(pendingEmail);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,12 +46,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setLoading(false);
 
     if (result.error) {
-      setMessage(result.error.message);
+      if (isRegister && result.error.message.toLowerCase().includes("rate limit")) {
+        setPendingEmail(email);
+      }
+
+      setMessage(formatAuthError(result.error.message, isRegister));
       return;
     }
 
     if (isRegister && !result.data.session) {
-      setMessage("Check your email to finish creating your account.");
+      setPendingEmail(email);
+      setMessage("");
       return;
     }
 
@@ -102,6 +110,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            {waitingForEmailConfirmation ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                <p className="font-semibold">Check your email</p>
+                <p className="mt-1">
+                  Supabase sent a confirmation link to{" "}
+                  <span className="font-semibold">{pendingEmail}</span>. Open that link, then
+                  come back and log in.
+                </p>
+              </div>
+            ) : null}
+
             {isRegister ? (
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Name</span>
@@ -110,6 +129,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   autoComplete="name"
+                  disabled={waitingForEmailConfirmation}
                 />
               </label>
             ) : null}
@@ -123,6 +143,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
                 required
+                disabled={waitingForEmailConfirmation}
               />
             </label>
 
@@ -136,6 +157,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 autoComplete={isRegister ? "new-password" : "current-password"}
                 minLength={6}
                 required
+                disabled={waitingForEmailConfirmation}
               />
             </label>
 
@@ -147,23 +169,50 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
             <button
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={loading}
+              disabled={loading || waitingForEmailConfirmation}
               type="submit"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isRegister ? "Register" : "Login"}
+              {waitingForEmailConfirmation
+                ? "Confirmation email sent"
+                : isRegister
+                  ? "Register"
+                  : "Login"}
               {!loading ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
+
+            {waitingForEmailConfirmation ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Link
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  href="/login"
+                >
+                  Go to login
+                </Link>
+                <button
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  type="button"
+                  onClick={() => {
+                    setPendingEmail("");
+                    setMessage("");
+                  }}
+                >
+                  Use another email
+                </button>
+              </div>
+            ) : null}
           </form>
 
-          <button
-            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            type="button"
-            onClick={handleGoogle}
-          >
-            <Globe className="h-4 w-4" />
-            Continue with Google
-          </button>
+          {googleAuthEnabled ? (
+            <button
+              className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              type="button"
+              onClick={handleGoogle}
+            >
+              <Globe className="h-4 w-4" />
+              Continue with Google
+            </button>
+          ) : null}
 
           <p className="mt-5 text-center text-sm text-slate-600">
             {isRegister ? "Already have an account?" : "Need an account?"}{" "}
@@ -178,4 +227,20 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       </div>
     </div>
   );
+}
+
+function formatAuthError(message: string, isRegister: boolean) {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("rate limit")) {
+    return isRegister
+      ? "Supabase already sent a confirmation email recently. Check your inbox, or wait a minute before requesting another one."
+      : "Too many attempts. Wait a minute, then try again.";
+  }
+
+  if (normalized.includes("already registered") || normalized.includes("already been registered")) {
+    return "That email already has an account. Try logging in instead.";
+  }
+
+  return message;
 }

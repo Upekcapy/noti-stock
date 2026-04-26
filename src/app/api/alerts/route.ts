@@ -35,11 +35,31 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createServerSupabaseClient();
-  const alert = await addPriceAlert(supabase, user.id, {
-    symbol: body.symbol,
-    targetPrice,
-    direction: body.direction,
-  });
+  try {
+    const alert = await addPriceAlert(supabase, user.id, {
+      symbol: body.symbol,
+      targetPrice,
+      direction: body.direction,
+    });
 
-  return NextResponse.json({ alert }, { status: 201 });
+    return NextResponse.json({ alert }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: formatDataError(error) }, { status: 500 });
+  }
+}
+
+function formatDataError(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "23503" &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.includes("price_alerts_user_id_fkey")
+  ) {
+    return "Your profile row is missing in Supabase. Rerun the NotiStock migration to backfill profiles, then try again.";
+  }
+
+  return error instanceof Error ? error.message : "Could not save alert.";
 }

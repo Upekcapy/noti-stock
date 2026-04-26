@@ -8,12 +8,14 @@ import {
   Plus,
   TrendingDown,
   TrendingUp,
+  TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
 import { StockLineChart } from "@/components/charts/StockLineChart";
 import {
   STOCK_RANGES,
   type StockHistoryPoint,
+  type StockHistorySource,
   type StockQuote,
   type StockRange,
 } from "@/lib/types/notistock";
@@ -23,6 +25,7 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
   const [range, setRange] = useState<StockRange>("1D");
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [points, setPoints] = useState<StockHistoryPoint[]>([]);
+  const [historySource, setHistorySource] = useState<StockHistorySource>("demo");
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -33,10 +36,14 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
       fetch(`/api/stocks/${symbol}/history?range=${range}`),
     ]);
     const quoteData = (await quoteResponse.json()) as { quote: StockQuote };
-    const historyData = (await historyResponse.json()) as { points: StockHistoryPoint[] };
+    const historyData = (await historyResponse.json()) as {
+      points: StockHistoryPoint[];
+      source?: StockHistorySource;
+    };
 
     setQuote(quoteData.quote);
     setPoints(historyData.points ?? []);
+    setHistorySource(historyData.source ?? "demo");
     setLoading(false);
   }, [range, symbol]);
 
@@ -73,13 +80,14 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Business Insider
+                  {getSourceName(quote)}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               ) : (
-                <span className="font-semibold">Demo data</span>
+                <span className="font-semibold">{getSourceName(quote)}</span>
               )}{" "}
               updated {formatDateTime(quote.updatedAt)}
+              {quote.source === "finnhub" ? ` | Chart: ${getHistorySourceName(historySource)}` : ""}
             </p>
           ) : null}
         </div>
@@ -146,7 +154,21 @@ export function StockDetailClient({ symbol }: { symbol: string }) {
               <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
             </div>
           ) : null}
-          <StockLineChart points={points} />
+          {points.length > 0 ? (
+            <StockLineChart points={points} />
+          ) : (
+            <div className="grid h-[360px] place-items-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-6 text-center">
+              <div>
+                <TriangleAlert className="mx-auto h-6 w-6 text-amber-500" />
+                <p className="mt-3 text-sm font-semibold text-slate-800">
+                  Historical chart data is unavailable for this symbol.
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Live quotes and alert checks are still using Finnhub.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -182,7 +204,7 @@ function StockDetailsGrid({ quote }: { quote: StockQuote }) {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="font-semibold text-slate-950">Business Insider stock details</h2>
+      <h2 className="font-semibold text-slate-950">Market data details</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {rows.map(([label, value]) => (
           <div key={label} className="rounded-lg border border-slate-200 p-3">
@@ -193,6 +215,17 @@ function StockDetailsGrid({ quote }: { quote: StockQuote }) {
       </div>
     </section>
   );
+}
+
+function getSourceName(quote: StockQuote) {
+  return quote.source === "finnhub" ? "Finnhub" : "Demo data";
+}
+
+function getHistorySourceName(source: StockHistorySource) {
+  if (source === "finnhub") return "live candles";
+  if (source === "nasdaq") return "Nasdaq";
+  if (source === "unavailable") return "unavailable";
+  return "demo";
 }
 
 function formatOptionalCurrency(value: number | undefined) {

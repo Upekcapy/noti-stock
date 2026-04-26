@@ -417,16 +417,24 @@ function isPushSupported() {
 }
 
 async function getServiceWorkerRegistration() {
-  const registration = await navigator.serviceWorker.register("/sw.js");
+  const registration = await navigator.serviceWorker.register("/sw.js", {
+    scope: "/",
+    updateViaCache: "none",
+  });
   return navigator.serviceWorker.ready.then(() => registration);
 }
 
 async function saveSubscription(subscription: PushSubscription) {
-  await fetch("/api/push/subscribe", {
+  const response = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ subscription: subscription.toJSON() }),
   });
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? "Could not save this device's push subscription.");
+  }
 }
 
 function isIosStandalone() {

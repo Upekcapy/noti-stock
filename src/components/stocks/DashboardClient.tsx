@@ -18,6 +18,7 @@ type WatchlistQuote = WatchlistItem & { quote?: StockQuote };
 export function DashboardClient({ user }: { user: AppUser }) {
   const [items, setItems] = useState<WatchlistQuote[]>([]);
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   const activeAlerts = useMemo(
@@ -53,18 +54,37 @@ export function DashboardClient({ user }: { user: AppUser }) {
   }, [refresh]);
 
   async function handleAdd(stock: StockSearchResult) {
-    await fetch("/api/watchlist", {
+    setMessage("");
+
+    const response = await fetch("/api/watchlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(stock),
     });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setMessage(data?.error ?? `Could not add ${stock.symbol}.`);
+      return;
+    }
+
     await refresh();
+    setMessage(`${stock.symbol} was added to your watchlist.`);
   }
 
   async function handleRemove(symbol: string) {
-    await fetch(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, {
+    setMessage("");
+
+    const response = await fetch(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, {
       method: "DELETE",
     });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setMessage(data?.error ?? `Could not remove ${symbol}.`);
+      return;
+    }
+
     await refresh();
   }
 
@@ -97,6 +117,12 @@ export function DashboardClient({ user }: { user: AppUser }) {
       </div>
 
       <StockSearch onAdd={handleAdd} />
+
+      {message ? (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm">
+          {message}
+        </p>
+      ) : null}
 
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">

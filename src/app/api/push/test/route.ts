@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { addNotification, listPushSubscriptions } from "@/lib/app-data";
+import {
+  addNotification,
+  listPushSubscriptions,
+  removePushSubscription,
+} from "@/lib/app-data";
 import { getCurrentUser } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/notifications";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -30,6 +34,12 @@ export async function POST() {
 
   const results = await Promise.all(
     subscriptions.map((subscription) => sendPushNotification(subscription, payload)),
+  );
+  await Promise.all(
+    subscriptions.map((subscription, index) => {
+      if (!results[index]?.expired) return Promise.resolve();
+      return removePushSubscription(supabase, user.id, subscription.endpoint);
+    }),
   );
 
   const hasSent = results.some((result) => result.ok);

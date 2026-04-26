@@ -77,14 +77,17 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_touch_updated_at on public.profiles;
 create trigger profiles_touch_updated_at
 before update on public.profiles
 for each row execute function public.touch_updated_at();
 
+drop trigger if exists price_alerts_touch_updated_at on public.price_alerts;
 create trigger price_alerts_touch_updated_at
 before update on public.price_alerts
 for each row execute function public.touch_updated_at();
 
+drop trigger if exists push_subscriptions_touch_updated_at on public.push_subscriptions;
 create trigger push_subscriptions_touch_updated_at
 before update on public.push_subscriptions
 for each row execute function public.touch_updated_at();
@@ -117,6 +120,19 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+insert into public.profiles (id, email, full_name)
+select
+  id,
+  email,
+  coalesce(raw_user_meta_data ->> 'full_name', raw_user_meta_data ->> 'name')
+from auth.users
+where email is not null
+on conflict (id) do update
+set
+  email = excluded.email,
+  full_name = coalesce(excluded.full_name, public.profiles.full_name),
+  updated_at = now();
+
 alter table public.profiles enable row level security;
 alter table public.watchlist_items enable row level security;
 alter table public.price_alerts enable row level security;
@@ -124,38 +140,51 @@ alter table public.notification_history enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.stock_price_cache enable row level security;
 
+drop policy if exists "Users can read own profile" on public.profiles;
 create policy "Users can read own profile"
 on public.profiles for select
 using (auth.uid() = id);
 
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+on public.profiles for insert
+with check (auth.uid() = id);
+
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
 on public.profiles for update
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
+drop policy if exists "Users manage own watchlist" on public.watchlist_items;
 create policy "Users manage own watchlist"
 on public.watchlist_items for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "Users manage own alerts" on public.price_alerts;
 create policy "Users manage own alerts"
 on public.price_alerts for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "Users read own notifications" on public.notification_history;
 create policy "Users read own notifications"
 on public.notification_history for select
 using (auth.uid() = user_id);
 
+drop policy if exists "Users create own notifications" on public.notification_history;
 create policy "Users create own notifications"
 on public.notification_history for insert
 with check (auth.uid() = user_id);
 
+drop policy if exists "Users manage own push subscriptions" on public.push_subscriptions;
 create policy "Users manage own push subscriptions"
 on public.push_subscriptions for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "Authenticated users can read stock cache" on public.stock_price_cache;
 create policy "Authenticated users can read stock cache"
 on public.stock_price_cache for select
 to authenticated

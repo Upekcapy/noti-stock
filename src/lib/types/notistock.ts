@@ -4,6 +4,7 @@ export type StockRange = (typeof STOCK_RANGES)[number];
 export type AlertDirection = "above" | "below";
 export type AlertStatus = "active" | "paused" | "triggered" | "deleted";
 export type DeliveryStatus = "sent" | "failed" | "simulated";
+export type StockHistorySource = "finnhub" | "nasdaq" | "demo" | "unavailable";
 
 export type AppUser = {
   id: string;
@@ -26,7 +27,7 @@ export type StockQuote = {
   changePercent: number;
   currency: string;
   updatedAt: string;
-  source: "business-insider" | "demo";
+  source: "finnhub" | "demo";
   sourceUrl?: string;
   details?: StockDetails;
 };
@@ -52,6 +53,11 @@ export type StockDetails = {
 export type StockHistoryPoint = {
   time: number;
   value: number;
+};
+
+export type StockHistoryResult = {
+  points: StockHistoryPoint[];
+  source: StockHistorySource;
 };
 
 export type WatchlistItem = {
