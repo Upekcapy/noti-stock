@@ -54,6 +54,17 @@ npx web-push generate-vapid-keys
 
 Add the public/private keys to `.env.local`. The service worker lives at `public/sw.js`.
 
+### Android PWA flow
+
+1. Deploy NotiStock over HTTPS, such as Vercel.
+2. Open the site in Android Chrome.
+3. Go to `/settings`.
+4. Install NotiStock as a PWA.
+5. Enable notifications.
+6. Send a random test alert.
+
+The Settings page shows whether the current device is installed, unsupported, blocked, unsubscribed, missing VAPID keys, or subscribed. Test notifications use fake stock-style messages, while real alerts are still delivered by `/api/cron/check-alerts`.
+
 ## Alert Checks
 
 The app exposes `GET /api/cron/check-alerts`, configured in `vercel.json` to run every 15 minutes. Add `CRON_SECRET` and call the route with:
