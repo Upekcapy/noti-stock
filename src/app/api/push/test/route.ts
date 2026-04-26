@@ -51,17 +51,22 @@ export async function POST() {
     const hasSent = sent > 0;
     const simulated = subscriptions.length === 0 || results.some((result) => result.simulated);
     const firstError = results.find((result) => result.error)?.error ?? null;
+    let notificationHistoryError: string | null = null;
 
-    await addNotification(supabase, user.id, {
-      alertId: null,
-      symbol: stock.symbol,
-      title: payload.title,
-      body: payload.body,
-      targetPrice: stock.price,
-      triggerPrice: stock.price,
-      deliveryStatus: hasSent ? "sent" : simulated ? "simulated" : "failed",
-      errorMessage: firstError,
-    });
+    try {
+      await addNotification(supabase, user.id, {
+        alertId: null,
+        symbol: stock.symbol,
+        title: payload.title,
+        body: payload.body,
+        targetPrice: stock.price,
+        triggerPrice: stock.price,
+        deliveryStatus: hasSent ? "sent" : simulated ? "simulated" : "failed",
+        errorMessage: firstError,
+      });
+    } catch (error) {
+      notificationHistoryError = formatRouteError(error);
+    }
 
     return NextResponse.json({
       ok: hasSent || simulated,
@@ -71,6 +76,7 @@ export async function POST() {
       expiredRemoved,
       failed,
       error: firstError,
+      notificationHistoryError,
       payload,
     });
   } catch (error) {
