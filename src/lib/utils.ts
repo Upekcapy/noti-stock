@@ -27,7 +27,11 @@ export function formatDateTime(value: string | null) {
 }
 
 export function normalizeSymbol(symbol: string) {
-  return symbol.trim().toUpperCase().replace(/[^A-Z.]/g, "").slice(0, 12);
+  return symbol.trim().toUpperCase().replace(/[^A-Z0-9.]/g, "").slice(0, 12);
+}
+
+export function getStockSearchPath(symbol: string) {
+  return `/search?symbol=${encodeURIComponent(normalizeSymbol(symbol))}`;
 }
 
 export function isAboveTarget(price: number, target: number) {

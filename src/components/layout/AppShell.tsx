@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/notifications", label: "History", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -75,7 +76,7 @@ export function AppShell({
             </div>
             <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 md:flex">
               <Search className="h-4 w-4" />
-              <span>Search tickers from the dashboard</span>
+              <span>Search tickers and open stock charts</span>
             </div>
             <form action="/auth/signout" method="post">
               <button
@@ -87,7 +88,7 @@ export function AppShell({
               </button>
             </form>
           </div>
-          <nav className="grid grid-cols-4 border-t border-slate-200 bg-white lg:hidden">
+          <nav className="grid grid-cols-5 border-t border-slate-200 bg-white lg:hidden">
             {navItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;

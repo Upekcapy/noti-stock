@@ -1,5 +1,5 @@
-import { StockDetailClient } from "@/components/stocks/StockDetailClient";
-import { normalizeSymbol } from "@/lib/utils";
+import { redirect } from "next/navigation";
+import { getStockSearchPath } from "@/lib/utils";
 
 export default async function StockPage({
   params,
@@ -8,5 +8,5 @@ export default async function StockPage({
 }) {
   const { symbol } = await params;
 
-  return <StockDetailClient symbol={normalizeSymbol(symbol)} />;
+  redirect(getStockSearchPath(symbol));
 }

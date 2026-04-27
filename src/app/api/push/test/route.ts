@@ -7,7 +7,7 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/notifications";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getStockSearchPath } from "@/lib/utils";
 
 const TEST_STOCKS = [
   { symbol: "NVDA", price: 900 },
@@ -30,7 +30,7 @@ export async function POST() {
       title: `${stock.symbol} reached ${formatCurrency(stock.price)}`,
       body: `Test alert: ${stock.symbol} crossed your NotiStock target.`,
       symbol: stock.symbol,
-      url: `/stocks/${stock.symbol}`,
+      url: getStockSearchPath(stock.symbol),
     };
 
     const results = await Promise.all(

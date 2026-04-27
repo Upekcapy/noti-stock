@@ -229,7 +229,7 @@ function mapSearchItem(item: FinnhubSearchItem): StockSearchResult | null {
 
 function normalizeProviderSymbol(value: string) {
   const raw = value.trim().toUpperCase();
-  if (!/^[A-Z][A-Z.]{0,11}$/.test(raw)) return "";
+  if (!/^[A-Z0-9][A-Z0-9.]{0,11}$/.test(raw)) return "";
   return normalizeSymbol(raw);
 }
 
