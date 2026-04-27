@@ -12,7 +12,7 @@ import { sendPushNotification } from "@/lib/notifications";
 import { getStockQuote } from "@/lib/stocks";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { StockQuote } from "@/lib/types/notistock";
-import { isAboveTarget, isBelowTarget, formatCurrency } from "@/lib/utils";
+import { isAboveTarget, isBelowTarget, formatCurrency, getStockSearchPath } from "@/lib/utils";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       title,
       body,
       symbol: alert.symbol,
-      url: `/stocks/${alert.symbol}`,
+      url: getStockSearchPath(alert.symbol),
     };
     const sends = await Promise.all(
       subscriptions.map((subscription) => sendPushNotification(subscription, payload)),

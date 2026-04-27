@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, CheckCircle2, Loader2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { StockMarketSnapshot } from "@/components/stocks/StockMarketSnapshot";
 import type {
   AlertDirection,
   AlertStatus,
@@ -345,6 +346,10 @@ export function AlertsClient() {
           </div>
         </section>
       </section>
+
+      {quoteStatus === "valid" && quote ? (
+        <StockMarketSnapshot symbol={quote.symbol} />
+      ) : null}
     </div>
   );
 }
@@ -384,7 +389,7 @@ function QuoteStatusPanel({
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="truncate font-semibold text-emerald-950">
-            {quote.symbol} · {quote.name}
+            {quote.symbol} - {quote.name}
           </p>
           <p className="text-emerald-800">Current {formatCurrency(quote.price)}</p>
         </div>
