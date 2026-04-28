@@ -3,7 +3,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, CheckCircle2, Loader2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { StockMarketSnapshot } from "@/components/stocks/StockMarketSnapshot";
+import { NotificationStatusPill } from "@/components/notifications/NotificationStatusPill";
+import {
+  StockMarketSnapshot,
+  type StockChartAlertSelection,
+} from "@/components/stocks/StockMarketSnapshot";
 import type {
   AlertDirection,
   AlertStatus,
@@ -13,13 +17,21 @@ import type {
 import { cn, formatCurrency, formatDateTime, normalizeSymbol } from "@/lib/utils";
 
 type QuoteStatus = "idle" | "checking" | "valid" | "invalid";
+type AlertMutationResponse = {
+  error?: string;
+  evaluation?: {
+    triggered?: boolean;
+  } | null;
+};
 
 export function AlertsClient() {
   const searchParams = useSearchParams();
+  const prefillSymbol = normalizeSymbol(searchParams.get("symbol") ?? "");
+  const prefillTarget = normalizeTargetPrice(searchParams.get("target") ?? "");
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
-  const [symbol, setSymbol] = useState(normalizeSymbol(searchParams.get("symbol") ?? ""));
-  const [targetPrice, setTargetPrice] = useState("");
-  const [direction, setDirection] = useState<AlertDirection>("above");
+  const [symbol, setSymbol] = useState(prefillSymbol);
+  const [targetPrice, setTargetPrice] = useState(prefillTarget);
+  const [direction, setDirection] = useState<AlertDirection | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>("idle");
@@ -30,9 +42,11 @@ export function AlertsClient() {
 
   const targetNumber = Number(targetPrice);
   const hasValidTarget = Number.isFinite(targetNumber) && targetNumber > 0;
-  const canSave = quoteStatus === "valid" && Boolean(quote) && hasValidTarget && !saving;
+  const canSave =
+    quoteStatus === "valid" && Boolean(quote) && hasValidTarget && Boolean(direction) && !saving;
   const triggerPreview = useMemo(() => {
     if (!quote || !hasValidTarget) return null;
+    if (!direction) return `Choose condition for ${formatCurrency(targetNumber)}`;
 
     return `${direction === "above" ? "At/above" : "At/below"} ${formatCurrency(targetNumber)}`;
   }, [direction, hasValidTarget, quote, targetNumber]);
@@ -48,6 +62,20 @@ export function AlertsClient() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!prefillSymbol && !prefillTarget) return;
+
+    setEditingId(null);
+    setMessage("");
+
+    if (prefillSymbol) setSymbol(prefillSymbol);
+    if (prefillTarget) {
+      setTargetPrice(prefillTarget);
+      setDirection(null);
+      setMessage("Choose Above or Below, then create your alert.");
+    }
+  }, [prefillSymbol, prefillTarget]);
 
   useEffect(() => {
     setQuote(null);
@@ -94,11 +122,6 @@ export function AlertsClient() {
     };
   }, [symbol]);
 
-  useEffect(() => {
-    if (!quote || !hasValidTarget) return;
-    setDirection(targetNumber >= quote.price ? "above" : "below");
-  }, [hasValidTarget, quote, targetNumber]);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -113,6 +136,11 @@ export function AlertsClient() {
       return;
     }
 
+    if (!direction) {
+      setMessage("Choose Above or Below before saving the alert.");
+      return;
+    }
+
     setSaving(true);
     const method = editingId ? "PATCH" : "POST";
     const url = editingId ? `/api/alerts/${editingId}` : "/api/alerts";
@@ -122,7 +150,7 @@ export function AlertsClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol: quote.symbol, targetPrice: targetNumber, direction }),
     });
-    const data = await readJsonResponse<{ error?: string }>(response);
+    const data = await readJsonResponse<AlertMutationResponse>(response);
     setSaving(false);
 
     if (!response.ok) {
@@ -133,11 +161,17 @@ export function AlertsClient() {
     setEditingId(null);
     setSymbol("");
     setTargetPrice("");
-    setDirection("above");
+    setDirection(null);
     setQuote(null);
     setQuoteStatus("idle");
     await refresh();
-    setMessage(editingId ? "Alert was updated." : "Alert was created.");
+    setMessage(
+      data.evaluation?.triggered
+        ? "Alert triggered immediately."
+        : editingId
+          ? "Alert was updated."
+          : "Alert was created.",
+    );
   }
 
   function edit(alert: PriceAlert) {
@@ -154,12 +188,14 @@ export function AlertsClient() {
 
   function handleTargetPriceChange(value: string) {
     setTargetPrice(value);
-
-    const nextTarget = Number(value);
-    if (quote && Number.isFinite(nextTarget) && nextTarget > 0) {
-      setDirection(nextTarget >= quote.price ? "above" : "below");
-    }
   }
+
+  const useChartPointAsTarget = useCallback((selection: StockChartAlertSelection) => {
+    setSymbol(normalizeSymbol(selection.symbol));
+    setTargetPrice(selection.price.toFixed(2));
+    setDirection(null);
+    setMessage("Target price set from chart. Choose Above or Below, then create your alert.");
+  }, []);
 
   async function updateStatus(id: string, status: AlertStatus) {
     await fetch(`/api/alerts/${id}`, {
@@ -177,11 +213,14 @@ export function AlertsClient() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <p className="text-sm font-medium text-emerald-700">NotiStock</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-          Price alerts
-        </h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">NotiStock</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+            Price alerts
+          </h1>
+        </div>
+        <NotificationStatusPill />
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[400px_1fr]">
@@ -348,7 +387,16 @@ export function AlertsClient() {
       </section>
 
       {quoteStatus === "valid" && quote ? (
-        <StockMarketSnapshot symbol={quote.symbol} />
+        <StockMarketSnapshot
+          symbol={quote.symbol}
+          onCreateAlertFromPoint={useChartPointAsTarget}
+          alertPointPrompt={{
+            question: (symbol, formattedPrice) =>
+              `Use ${formattedPrice} as the target price for ${symbol}?`,
+            description: "This will fill the target price in the alert form above.",
+            confirmLabel: "Use price",
+          }}
+        />
       ) : null}
     </div>
   );
@@ -419,4 +467,11 @@ async function readJsonResponse<T extends { error?: string }>(response: Response
   } catch {
     return { error: `Server returned ${response.status} instead of JSON.` } as T;
   }
+}
+
+function normalizeTargetPrice(value: string) {
+  const target = Number(value);
+  if (!Number.isFinite(target) || target <= 0) return "";
+
+  return target.toFixed(2);
 }

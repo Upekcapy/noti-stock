@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
-import { StockLineChart } from "@/components/charts/StockLineChart";
+import {
+  StockLineChart,
+  type ChartPointSelection,
+} from "@/components/charts/StockLineChart";
 import {
   STOCK_RANGES,
   type StockHistoryPoint,
@@ -12,17 +15,38 @@ import {
 } from "@/lib/types/notistock";
 import { cn, formatCurrency, formatPercent, normalizeSymbol } from "@/lib/utils";
 
+export type StockChartAlertSelection = ChartPointSelection & {
+  symbol: string;
+};
+
+type StockChartAlertPrompt = {
+  question: (symbol: string, formattedPrice: string) => string;
+  description: string;
+  confirmLabel: string;
+};
+
+const defaultAlertPrompt: StockChartAlertPrompt = {
+  question: (symbol, formattedPrice) => `Create an alert for ${symbol} at ${formattedPrice}?`,
+  description: "The alert form will open with this symbol and target price filled in.",
+  confirmLabel: "Yes",
+};
+
 export function StockMarketSnapshot({
   symbol,
   onQuoteChange,
+  onCreateAlertFromPoint,
+  alertPointPrompt = defaultAlertPrompt,
 }: {
   symbol: string;
   onQuoteChange?: (quote: StockQuote | null, historySource: StockHistorySource) => void;
+  onCreateAlertFromPoint?: (selection: StockChartAlertSelection) => void;
+  alertPointPrompt?: StockChartAlertPrompt;
 }) {
   const normalizedSymbol = normalizeSymbol(symbol);
   const [range, setRange] = useState<StockRange>("1D");
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [points, setPoints] = useState<StockHistoryPoint[]>([]);
+  const [selectedPoint, setSelectedPoint] = useState<ChartPointSelection | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -51,16 +75,19 @@ export function StockMarketSnapshot({
   useEffect(() => {
     setQuote(null);
     setPoints([]);
+    setSelectedPoint(null);
     setLoading(true);
   }, [normalizedSymbol]);
 
   useEffect(() => {
+    setSelectedPoint(null);
     void refresh();
   }, [refresh]);
 
   if (!normalizedSymbol) return null;
 
   const positive = (quote?.change ?? 0) >= 0;
+  const selectedPointPrice = selectedPoint ? formatCurrency(selectedPoint.price) : "";
 
   return (
     <div className="space-y-6">
@@ -103,13 +130,51 @@ export function StockMarketSnapshot({
         </div>
 
         <div className="relative mt-4">
+          {selectedPoint && onCreateAlertFromPoint ? (
+            <div className="mb-3 flex flex-col gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-950 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-semibold">
+                  {alertPointPrompt.question(normalizedSymbol, selectedPointPrice)}
+                </p>
+                <p className="mt-1 text-rose-700">
+                  {alertPointPrompt.description}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                  type="button"
+                  onClick={() => setSelectedPoint(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="h-9 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+                  type="button"
+                  onClick={() => {
+                    setSelectedPoint(null);
+                    onCreateAlertFromPoint({
+                      ...selectedPoint,
+                      symbol: normalizedSymbol,
+                    });
+                  }}
+                >
+                  {alertPointPrompt.confirmLabel}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {loading ? (
             <div className="absolute inset-0 z-10 grid place-items-center bg-white/70">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
             </div>
           ) : null}
           {points.length > 0 ? (
-            <StockLineChart points={points} />
+            <StockLineChart
+              points={points}
+              selectedPoint={selectedPoint}
+              onPointSelect={onCreateAlertFromPoint ? setSelectedPoint : undefined}
+            />
           ) : (
             <div className="grid h-[360px] place-items-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-6 text-center">
               <div>

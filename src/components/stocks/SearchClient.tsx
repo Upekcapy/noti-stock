@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BellPlus, Check, ExternalLink, Plus } from "lucide-react";
 import Link from "next/link";
-import { StockMarketSnapshot } from "@/components/stocks/StockMarketSnapshot";
+import { useRouter } from "next/navigation";
+import {
+  StockMarketSnapshot,
+  type StockChartAlertSelection,
+} from "@/components/stocks/StockMarketSnapshot";
 import { StockSearch } from "@/components/stocks/StockSearch";
 import type {
   StockHistorySource,
@@ -11,9 +15,10 @@ import type {
   StockSearchResult,
   WatchlistItem,
 } from "@/lib/types/notistock";
-import { formatDateTime, normalizeSymbol } from "@/lib/utils";
+import { formatDateTime, getAlertPrefillPath, normalizeSymbol } from "@/lib/utils";
 
 export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
+  const router = useRouter();
   const selectedSymbol = normalizeSymbol(initialSymbol);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [quote, setQuote] = useState<StockQuote | null>(null);
@@ -77,6 +82,13 @@ export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
     await refreshWatchlist();
     setMessage(`${normalizedStock.symbol} was added to your watchlist.`);
   }
+
+  const handleCreateAlertFromPoint = useCallback(
+    (selection: StockChartAlertSelection) => {
+      router.push(getAlertPrefillPath(selection.symbol, selection.price));
+    },
+    [router],
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -152,7 +164,7 @@ export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
                 </button>
                 <Link
                   className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  href={`/alerts?symbol=${selectedSymbol}`}
+                  href={getAlertPrefillPath(selectedSymbol)}
                 >
                   <BellPlus className="h-4 w-4" />
                   Alert
@@ -161,7 +173,11 @@ export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
             </div>
           </section>
 
-          <StockMarketSnapshot symbol={selectedSymbol} onQuoteChange={handleQuoteChange} />
+          <StockMarketSnapshot
+            symbol={selectedSymbol}
+            onQuoteChange={handleQuoteChange}
+            onCreateAlertFromPoint={handleCreateAlertFromPoint}
+          />
         </div>
       ) : null}
     </div>

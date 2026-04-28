@@ -34,6 +34,16 @@ export function getStockSearchPath(symbol: string) {
   return `/search?symbol=${encodeURIComponent(normalizeSymbol(symbol))}`;
 }
 
+export function getAlertPrefillPath(symbol: string, targetPrice?: number) {
+  const params = new URLSearchParams({ symbol: normalizeSymbol(symbol) });
+
+  if (targetPrice !== undefined && Number.isFinite(targetPrice) && targetPrice > 0) {
+    params.set("target", targetPrice.toFixed(2));
+  }
+
+  return `/alerts?${params.toString()}`;
+}
+
 export function isAboveTarget(price: number, target: number) {
   return price >= target;
 }

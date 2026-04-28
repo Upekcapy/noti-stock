@@ -1,4 +1,4 @@
-import { getDemoQuote, getDemoStockMeta } from "@/lib/demo-data";
+import { getDemoStockMeta } from "@/lib/demo-data";
 import {
   type AlertDirection,
   type AlertInput,
@@ -183,6 +183,10 @@ export function listDemoAlerts(userId: string) {
   return alerts.filter((alert) => alert.userId === userId && alert.status !== "deleted");
 }
 
+export function listActiveDemoAlerts(userId: string) {
+  return alerts.filter((alert) => alert.userId === userId && alert.status === "active");
+}
+
 export function addDemoAlert(userId: string, input: AlertInput) {
   const symbol = normalizeSymbol(input.symbol);
   const duplicate = alerts.find(
@@ -238,6 +242,32 @@ export function updateDemoAlert(
 
 export function deleteDemoAlert(userId: string, id: string) {
   return updateDemoAlert(userId, id, { status: "deleted" });
+}
+
+export function markDemoAlertChecked(alertId: string, price: number) {
+  alerts = alerts.map((alert) => {
+    if (alert.id !== alertId) return alert;
+
+    return {
+      ...alert,
+      updatedAt: now(),
+      lastCheckedPrice: price,
+    };
+  });
+}
+
+export function markDemoAlertTriggered(alertId: string, price: number) {
+  alerts = alerts.map((alert) => {
+    if (alert.id !== alertId) return alert;
+
+    return {
+      ...alert,
+      status: "triggered",
+      triggeredAt: now(),
+      updatedAt: now(),
+      lastCheckedPrice: price,
+    };
+  });
 }
 
 export function listDemoNotifications(userId: string) {
@@ -298,37 +328,6 @@ export function deleteDemoSubscription(userId: string, endpoint: string) {
 
 export function listDemoSubscriptions(userId: string) {
   return subscriptions.filter((item) => item.userId === userId);
-}
-
-export function evaluateDemoAlerts(userId: string) {
-  const triggered: PriceAlert[] = [];
-
-  alerts = alerts.map((alert) => {
-    if (alert.userId !== userId || alert.status !== "active") return alert;
-
-    const quote = getDemoQuote(alert.symbol);
-    const crossed =
-      alert.direction === "above"
-        ? quote.price >= alert.targetPrice
-        : quote.price <= alert.targetPrice;
-
-    if (!crossed) {
-      return { ...alert, lastCheckedPrice: quote.price, updatedAt: now() };
-    }
-
-    const nextAlert = {
-      ...alert,
-      status: "triggered" as const,
-      triggeredAt: now(),
-      updatedAt: now(),
-      lastCheckedPrice: quote.price,
-    };
-
-    triggered.push(nextAlert);
-    return nextAlert;
-  });
-
-  return triggered;
 }
 
 export function isAlertDirection(value: unknown): value is AlertDirection {

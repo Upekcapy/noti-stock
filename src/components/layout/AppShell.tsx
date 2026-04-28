@@ -7,19 +7,22 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Smartphone,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { HeaderStockSearch } from "@/components/layout/HeaderStockSearch";
 import type { AppUser } from "@/lib/types/notistock";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/notifications", label: "History", icon: ShieldCheck },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Dashboard", mobileLabel: "Dash", icon: Home },
+  { href: "/search", label: "Search", mobileLabel: "Search", icon: Search },
+  { href: "/alerts", label: "Alerts", mobileLabel: "Alerts", icon: Bell },
+  { href: "/notifications", label: "History", mobileLabel: "Hist", icon: ShieldCheck },
+  { href: "/phone-setup", label: "Phone Setup", mobileLabel: "Phone", icon: Smartphone },
+  { href: "/settings", label: "Settings", mobileLabel: "Set", icon: Settings },
 ];
 
 export function AppShell({
@@ -74,21 +77,32 @@ export function AppShell({
             <div className="flex items-center gap-3 lg:hidden">
               <Brand compact />
             </div>
-            <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 md:flex">
-              <Search className="h-4 w-4" />
-              <span>Search tickers and open stock charts</span>
-            </div>
-            <form action="/auth/signout" method="post">
-              <button
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                type="submit"
+            <HeaderStockSearch />
+            <div className="flex items-center gap-2">
+              <Link
+                className="hidden h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:inline-flex"
+                href="/pricing"
               >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
-            </form>
+                Pricing
+              </Link>
+              <Link
+                className="hidden h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:inline-flex"
+                href="/about"
+              >
+                About me
+              </Link>
+              <form action="/auth/signout" method="post">
+                <button
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  type="submit"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </form>
+            </div>
           </div>
-          <nav className="grid grid-cols-5 border-t border-slate-200 bg-white lg:hidden">
+          <nav className="grid grid-cols-6 border-t border-slate-200 bg-white lg:hidden">
             {navItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
@@ -98,12 +112,14 @@ export function AppShell({
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium",
+                    "flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-medium",
                     active ? "text-emerald-700" : "text-slate-500",
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  <span className="w-full truncate px-0.5 text-center">
+                    {item.mobileLabel ?? item.label}
+                  </span>
                 </Link>
               );
             })}

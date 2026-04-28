@@ -58,6 +58,8 @@ type PushTestResponse = {
   notificationHistoryError?: string | null;
 };
 
+type PushSettingsMode = "settings" | "phone-setup";
+
 const initialDeviceInfo: DeviceInfo = {
   secureContext: false,
   localOrigin: false,
@@ -69,6 +71,14 @@ const initialDeviceInfo: DeviceInfo = {
 };
 
 export function PushSettings() {
+  return <PushExperience mode="settings" />;
+}
+
+export function PhoneSetup() {
+  return <PushExperience mode="phone-setup" />;
+}
+
+function PushExperience({ mode }: { mode: PushSettingsMode }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,6 +92,7 @@ export function PushSettings() {
   const [subscriptionEndpoint, setSubscriptionEndpoint] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [testCounts, setTestCounts] = useState<PushTestResponse | null>(null);
+  const phoneSetupView = mode === "phone-setup";
 
   const statusView = useMemo(() => getStatusView(status), [status]);
   const setupSteps = useMemo(
@@ -94,6 +105,7 @@ export function PushSettings() {
         status,
         testStatus,
         testCounts,
+        controlsOnThisPage: !phoneSetupView,
       }),
     [
       deviceInfo,
@@ -103,6 +115,7 @@ export function PushSettings() {
       status,
       testStatus,
       testCounts,
+      phoneSetupView,
     ],
   );
 
@@ -364,22 +377,76 @@ export function PushSettings() {
         <div>
           <p className="text-sm font-medium text-emerald-700">NotiStock</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-            Phone setup
+            {phoneSetupView ? "Phone setup" : "Settings"}
           </h1>
         </div>
         <StatusBadge active={status === "subscribed"} label={statusView.label} />
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      {phoneSetupView ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-emerald-600" />
+                <h2 className="font-semibold text-slate-950">Android phone readiness</h2>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                Use the production HTTPS site on Android Chrome, install the app, then
+                use Settings to enable notifications and send a test alert.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={deviceInfo.installed}
+                onClick={installApp}
+              >
+                <Download className="h-4 w-4" />
+                Install app
+              </button>
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={refreshing || loading}
+                onClick={() => void refreshStatus()}
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-slate-100">
+            {setupSteps.map((step) => (
+              <SetupStepRow key={step.label} step={step} />
+            ))}
+          </div>
+
+          {message ? (
+            <p className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
+              {message}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {!phoneSetupView ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
             <div className="flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-emerald-600" />
-              <h2 className="font-semibold text-slate-950">Android phone readiness</h2>
+              <Bell className="h-4 w-4 text-emerald-600" />
+              <h2 className="font-semibold text-slate-950">Notification controls</h2>
             </div>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Use the production HTTPS site on Android Chrome, install the app, enable
-              notifications, then send a test alert before relying on price alerts.
+              Subscribe this exact device, remove it, and verify the server can reach it
+              through Web Push.
             </p>
           </div>
           <button
@@ -395,27 +462,6 @@ export function PushSettings() {
             )}
             Refresh
           </button>
-        </div>
-
-        <div className="mt-4 rounded-lg border border-slate-100">
-          {setupSteps.map((step) => (
-            <SetupStepRow key={step.label} step={step} />
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-          <div>
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-emerald-600" />
-              <h2 className="font-semibold text-slate-950">Notification controls</h2>
-            </div>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              These buttons subscribe this exact device, remove it, and verify the server
-              can reach it through Web Push.
-            </p>
-          </div>
         </div>
 
         <div className={cn("mt-4 rounded-lg border p-3", statusView.className)}>
@@ -455,24 +501,13 @@ export function PushSettings() {
           </button>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            type="button"
-            disabled={deviceInfo.installed}
-            onClick={installApp}
-          >
-            <Download className="h-4 w-4" />
-            Install app
-          </button>
-        </div>
-
         {message ? (
           <p className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
             {message}
           </p>
         ) : null}
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -596,6 +631,7 @@ function getSetupSteps({
   status,
   testStatus,
   testCounts,
+  controlsOnThisPage,
 }: {
   deviceInfo: DeviceInfo;
   installPrompt: InstallPromptEvent | null;
@@ -604,6 +640,7 @@ function getSetupSteps({
   status: PushStatus;
   testStatus: TestStatus;
   testCounts: PushTestResponse | null;
+  controlsOnThisPage: boolean;
 }) {
   const androidChrome = deviceInfo.android && deviceInfo.chrome;
   const secureTone: SetupTone =
@@ -672,7 +709,9 @@ function getSetupSteps({
           ? "This device has allowed notifications."
           : deviceInfo.notificationPermission === "denied"
             ? "Notifications are blocked for this site."
-            : "Tap Enable to request notification permission from the browser.",
+            : controlsOnThisPage
+              ? "Tap Enable to request notification permission from the browser."
+              : "Use Settings to request notification permission from the browser.",
     },
     {
       label: "Service worker",
@@ -696,12 +735,14 @@ function getSetupSteps({
             ? "The device subscription could not be saved."
             : subscriptionStatus === "unsupported"
               ? "A subscription cannot be created until push support and keys are ready."
-              : "Tap Enable to create and save this device subscription.",
+              : controlsOnThisPage
+                ? "Tap Enable to create and save this device subscription."
+                : "Use Settings to create and save this device subscription.",
     },
     {
       label: "Random test",
       tone: testTone,
-      description: getTestDescription(testStatus, testCounts),
+      description: getTestDescription(testStatus, testCounts, controlsOnThisPage),
     },
   ];
 }
@@ -728,7 +769,11 @@ function mapTestTone(status: TestStatus): SetupTone {
   return "ready";
 }
 
-function getTestDescription(status: TestStatus, counts: PushTestResponse | null) {
+function getTestDescription(
+  status: TestStatus,
+  counts: PushTestResponse | null,
+  controlsOnThisPage: boolean,
+) {
   if (status === "sent") {
     return counts?.notificationHistoryError
       ? `Push sent, but history failed: ${counts.notificationHistoryError}`
@@ -751,7 +796,9 @@ function getTestDescription(status: TestStatus, counts: PushTestResponse | null)
 
   if (status === "sending") return "Sending a test notification now.";
 
-  return "Send a test after this device is subscribed.";
+  return controlsOnThisPage
+    ? "Send a test after this device is subscribed."
+    : "Send a test from Settings after this device is subscribed.";
 }
 
 function getToneView(tone: SetupTone) {

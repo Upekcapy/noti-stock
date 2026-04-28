@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  addNotification,
-  listActiveAlertsForCron,
-  listPushSubscriptions,
-  markAlertChecked,
-  markAlertTriggered,
-  removePushSubscription,
-} from "@/lib/app-data";
-import { env, isWebPushConfigured } from "@/lib/env";
-import { sendPushNotification } from "@/lib/notifications";
+import { evaluateAlertWithQuote } from "@/lib/alert-evaluator";
+import { listActiveAlertsForCron } from "@/lib/app-data";
+import { env } from "@/lib/env";
 import { getStockQuote } from "@/lib/stocks";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { StockQuote } from "@/lib/types/notistock";
-import { isAboveTarget, isBelowTarget, formatCurrency, getStockSearchPath } from "@/lib/utils";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -37,58 +29,19 @@ export async function GET(request: Request) {
   );
 
   for (const alert of alerts) {
-    const quote = quotesBySymbol.get(alert.symbol);
-    if (!quote || quote.source === "demo") {
+    const result = await evaluateAlertWithQuote(
+      supabase,
+      alert,
+      quotesBySymbol.get(alert.symbol) ?? null,
+    );
+
+    if (result.skippedDemoData) {
       skippedDemoData += 1;
       continue;
     }
 
-    checked += 1;
-    const crossed =
-      alert.direction === "above"
-        ? isAboveTarget(quote.price, alert.targetPrice)
-        : isBelowTarget(quote.price, alert.targetPrice);
-
-    if (!crossed) {
-      await markAlertChecked(supabase, alert, quote.price);
-      continue;
-    }
-
-    triggered += 1;
-    await markAlertTriggered(supabase, alert, quote.price);
-
-    const subscriptions = await listPushSubscriptions(supabase, alert.userId);
-    const title = `${alert.symbol} reached ${formatCurrency(alert.targetPrice)}`;
-    const body = `${alert.symbol} is now ${formatCurrency(quote.price)}.`;
-    const payload = {
-      title,
-      body,
-      symbol: alert.symbol,
-      url: getStockSearchPath(alert.symbol),
-    };
-    const sends = await Promise.all(
-      subscriptions.map((subscription) => sendPushNotification(subscription, payload)),
-    );
-    await Promise.all(
-      subscriptions.map((subscription, index) => {
-        if (!sends[index]?.expired) return Promise.resolve();
-        return removePushSubscription(supabase, alert.userId, subscription.endpoint);
-      }),
-    );
-    const sent = sends.some((result) => result.ok);
-    const simulated = !isWebPushConfigured || subscriptions.length === 0;
-    const firstError = sends.find((result) => result.error)?.error ?? null;
-
-    await addNotification(supabase, alert.userId, {
-      alertId: alert.id,
-      symbol: alert.symbol,
-      title,
-      body,
-      targetPrice: alert.targetPrice,
-      triggerPrice: quote.price,
-      deliveryStatus: sent ? "sent" : simulated ? "simulated" : "failed",
-      errorMessage: firstError,
-    });
+    if (result.checked) checked += 1;
+    if (result.triggered) triggered += 1;
   }
 
   return NextResponse.json({ checked, triggered, skippedDemoData });

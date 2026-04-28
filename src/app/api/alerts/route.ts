@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { evaluateAlertWithQuote } from "@/lib/alert-evaluator";
 import { addPriceAlert, listAlerts } from "@/lib/app-data";
 import { getCurrentUser } from "@/lib/auth";
 import { getLiveStockQuote } from "@/lib/stocks";
@@ -53,8 +54,9 @@ export async function POST(request: Request) {
       targetPrice,
       direction: body.direction,
     });
+    const evaluation = await evaluateAlertWithQuote(supabase, alert, liveQuote);
 
-    return NextResponse.json({ alert }, { status: 201 });
+    return NextResponse.json({ alert, evaluation }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: formatDataError(error) }, { status: 500 });
   }

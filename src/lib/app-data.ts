@@ -5,12 +5,14 @@ import {
   addDemoWatchlistItem,
   deleteDemoAlert,
   deleteDemoSubscription,
-  evaluateDemoAlerts,
   isAlertDirection,
+  listActiveDemoAlerts,
   listDemoAlerts,
   listDemoNotifications,
   listDemoSubscriptions,
   listDemoWatchlist,
+  markDemoAlertChecked,
+  markDemoAlertTriggered,
   removeDemoWatchlistItem,
   updateDemoAlert,
   upsertDemoSubscription,
@@ -352,7 +354,7 @@ export async function listPushSubscriptions(
 }
 
 export async function listActiveAlertsForCron(supabase: SupabaseClient | null) {
-  if (!supabase) return evaluateDemoAlerts("demo-user");
+  if (!supabase) return listActiveDemoAlerts("demo-user");
 
   const { data, error } = await supabase
     .from("price_alerts")
@@ -369,7 +371,10 @@ export async function markAlertChecked(
   alert: PriceAlert,
   price: number,
 ) {
-  if (!supabase) return;
+  if (!supabase) {
+    markDemoAlertChecked(alert.id, price);
+    return;
+  }
 
   const { error } = await supabase
     .from("price_alerts")
@@ -384,7 +389,10 @@ export async function markAlertTriggered(
   alert: PriceAlert,
   price: number,
 ) {
-  if (!supabase) return;
+  if (!supabase) {
+    markDemoAlertTriggered(alert.id, price);
+    return;
+  }
 
   const { error } = await supabase
     .from("price_alerts")

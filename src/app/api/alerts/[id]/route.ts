@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { evaluateAlertWithQuote } from "@/lib/alert-evaluator";
 import { deletePriceAlert, updatePriceAlert } from "@/lib/app-data";
 import { getCurrentUser } from "@/lib/auth";
+import { getLiveStockQuote } from "@/lib/stocks";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { AlertDirection, AlertStatus } from "@/lib/types/notistock";
 
@@ -48,8 +50,16 @@ export async function PATCH(
 
   const supabase = await createServerSupabaseClient();
   const alert = await updatePriceAlert(supabase, user.id, id, patch);
+  const evaluation =
+    alert?.status === "active"
+      ? await evaluateAlertWithQuote(
+          supabase,
+          alert,
+          await getLiveStockQuote(alert.symbol, { includeProfile: false }),
+        )
+      : null;
 
-  return NextResponse.json({ alert });
+  return NextResponse.json({ alert, evaluation });
 }
 
 export async function DELETE(
