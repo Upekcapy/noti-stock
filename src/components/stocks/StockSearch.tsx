@@ -3,7 +3,14 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Loader2, Plus, Search, TrendingDown, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
-import { cn, formatCurrency, formatPercent, getStockSearchPath } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import {
+  cn,
+  formatCurrency,
+  formatPercent,
+  getStockSearchPath,
+  normalizeSymbol,
+} from "@/lib/utils";
 import type { StockQuote, StockSearchResult } from "@/lib/types/notistock";
 
 type StockSearchResultWithQuote = StockSearchResult & { quote?: StockQuote };
@@ -15,6 +22,7 @@ export function StockSearch({
   onAdd: (stock: StockSearchResult) => Promise<void>;
   watchlistSymbols: Set<string>;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StockSearchResultWithQuote[]>([]);
   const [loading, setLoading] = useState(false);
@@ -83,7 +91,7 @@ export function StockSearch({
     };
   }, [trimmedQuery]);
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!trimmedQuery) {
       setResults([]);
@@ -91,7 +99,36 @@ export function StockSearch({
       return;
     }
 
+    const selectedResult = findBestResult(trimmedQuery, results);
+    if (selectedResult) {
+      openStock(selectedResult.symbol);
+      return;
+    }
+
     setOpen(true);
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(trimmedQuery)}`);
+      if (response.ok) {
+        const data = (await response.json()) as { results?: StockSearchResult[] };
+        const freshResults = data.results ?? [];
+        const bestFreshResult = findBestResult(trimmedQuery, freshResults);
+        setResults(freshResults);
+
+        if (bestFreshResult) {
+          openStock(bestFreshResult.symbol);
+          return;
+        }
+      }
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+
+    const fallbackSymbol = normalizeSymbol(trimmedQuery);
+    if (fallbackSymbol) openStock(fallbackSymbol);
   }
 
   function handleClear() {
@@ -99,6 +136,15 @@ export function StockSearch({
     setResults([]);
     setOpen(false);
     setLoading(false);
+  }
+
+  function openStock(symbolInput: string) {
+    const symbol = normalizeSymbol(symbolInput);
+    if (!symbol) return;
+
+    setOpen(false);
+    setQuery(symbol);
+    router.push(getStockSearchPath(symbol));
   }
 
   return (
@@ -221,6 +267,18 @@ export function StockSearch({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function findBestResult<T extends StockSearchResult>(query: string, searchResults: T[]) {
+  const normalizedQuery = normalizeSymbol(query);
+  if (!normalizedQuery) return null;
+
+  return (
+    searchResults.find((stock) => normalizeSymbol(stock.symbol) === normalizedQuery) ??
+    searchResults.find((stock) => normalizeSymbol(stock.symbol).startsWith(normalizedQuery)) ??
+    searchResults[0] ??
+    null
   );
 }
 

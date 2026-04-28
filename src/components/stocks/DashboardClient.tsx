@@ -62,6 +62,7 @@ export function DashboardClient({ user }: { user: AppUser }) {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [hasLoadedDashboard, setHasLoadedDashboard] = useState(false);
 
   const activeAlerts = useMemo(
     () => alerts.filter((alert) => alert.status === "active").length,
@@ -75,29 +76,35 @@ export function DashboardClient({ user }: { user: AppUser }) {
   const refresh = useCallback(async () => {
     setLoading(true);
 
-    const [watchlistResponse, alertsResponse] = await Promise.all([
-      fetch("/api/watchlist"),
-      fetch("/api/alerts"),
-    ]);
-    const watchlistData = (await watchlistResponse.json()) as { items: WatchlistItem[] };
-    const alertsData = (await alertsResponse.json()) as { alerts: PriceAlert[] };
+    try {
+      const [watchlistResponse, alertsResponse] = await Promise.all([
+        fetch("/api/watchlist"),
+        fetch("/api/alerts"),
+      ]);
+      const watchlistData = (await watchlistResponse.json()) as { items: WatchlistItem[] };
+      const alertsData = (await alertsResponse.json()) as { alerts: PriceAlert[] };
 
-    const [quotes, largestQuotes, volatileQuotes] = await Promise.all([
-      Promise.all(
-        (watchlistData.items ?? []).map(async (item) => ({
-          ...item,
-          quote: await fetchStockQuote(item.symbol),
-        })),
-      ),
-      loadFeaturedQuotes(LARGEST_STOCKS),
-      loadFeaturedQuotes(MOST_VOLATILE_STOCKS),
-    ]);
+      const [quotes, largestQuotes, volatileQuotes] = await Promise.all([
+        Promise.all(
+          (watchlistData.items ?? []).map(async (item) => ({
+            ...item,
+            quote: await fetchStockQuote(item.symbol),
+          })),
+        ),
+        loadFeaturedQuotes(LARGEST_STOCKS),
+        loadFeaturedQuotes(MOST_VOLATILE_STOCKS),
+      ]);
 
-    setItems(quotes);
-    setLargestStocks(largestQuotes);
-    setVolatileStocks(volatileQuotes);
-    setAlerts(alertsData.alerts ?? []);
-    setLoading(false);
+      setItems(quotes);
+      setLargestStocks(largestQuotes);
+      setVolatileStocks(volatileQuotes);
+      setAlerts(alertsData.alerts ?? []);
+    } catch {
+      setMessage("Could not load dashboard data. Try refreshing the page.");
+    } finally {
+      setLoading(false);
+      setHasLoadedDashboard(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -139,6 +146,8 @@ export function DashboardClient({ user }: { user: AppUser }) {
     await refresh();
   }
 
+  const initialLoading = loading && !hasLoadedDashboard;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -153,6 +162,10 @@ export function DashboardClient({ user }: { user: AppUser }) {
         </div>
       </div>
 
+      {initialLoading ? (
+        <DashboardLoadingState />
+      ) : (
+        <>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label="Watchlist" value={items.length.toString()} />
         <MetricCard label="Active alerts" value={activeAlerts.toString()} />
@@ -278,6 +291,8 @@ export function DashboardClient({ user }: { user: AppUser }) {
           {!alerts.length ? <p className="text-sm text-slate-500">No alerts yet.</p> : null}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }
@@ -404,6 +419,65 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-sm font-medium text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function DashboardLoadingState() {
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="grid min-h-[360px] place-items-center px-5 py-10">
+        <div className="w-full max-w-3xl text-center">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          </div>
+          <p className="mt-5 text-sm font-semibold uppercase text-emerald-700">
+            Loading dashboard
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            Getting your stocks ready
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+            Fetching your watchlist, active alerts, and fresh market prices.
+          </p>
+
+          <div className="mt-8 grid gap-3 md:grid-cols-3">
+            {["Watchlist", "Active alerts", "Best mover"].map((label) => (
+              <div
+                className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left"
+                key={label}
+              >
+                <p className="text-sm font-medium text-slate-400">{label}</p>
+                <div className="mt-3 h-8 w-20 animate-pulse rounded-md bg-slate-200" />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <LoadingListPreview title="Watchlist" />
+            <LoadingListPreview title="Top stocks" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LoadingListPreview({ title }: { title: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left">
+      <p className="text-sm font-semibold text-slate-500">{title}</p>
+      <div className="mt-4 space-y-3">
+        {[0, 1, 2].map((item) => (
+          <div className="flex items-center justify-between gap-3" key={item}>
+            <div className="min-w-0 flex-1">
+              <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-32 animate-pulse rounded bg-slate-200" />
+            </div>
+            <div className="h-6 w-14 animate-pulse rounded bg-slate-200" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

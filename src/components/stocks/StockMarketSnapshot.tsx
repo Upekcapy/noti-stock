@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import {
   StockLineChart,
@@ -84,10 +84,14 @@ export function StockMarketSnapshot({
     void refresh();
   }, [refresh]);
 
-  if (!normalizedSymbol) return null;
-
   const positive = (quote?.change ?? 0) >= 0;
   const selectedPointPrice = selectedPoint ? formatCurrency(selectedPoint.price) : "";
+  const displayedPoints = useMemo(
+    () => alignChartToQuote(points, quote),
+    [points, quote],
+  );
+
+  if (!normalizedSymbol) return null;
 
   return (
     <div className="space-y-6">
@@ -169,9 +173,9 @@ export function StockMarketSnapshot({
               <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
             </div>
           ) : null}
-          {points.length > 0 ? (
+          {displayedPoints.length > 0 ? (
             <StockLineChart
-              points={points}
+              points={displayedPoints}
               selectedPoint={selectedPoint}
               onPointSelect={onCreateAlertFromPoint ? setSelectedPoint : undefined}
             />
@@ -242,4 +246,30 @@ function formatOptionalCurrency(value: number | undefined) {
 
 function formatOptionalNumber(value: number | undefined) {
   return value === undefined ? "-" : value.toFixed(2);
+}
+
+function alignChartToQuote(
+  points: StockHistoryPoint[],
+  quote: StockQuote | null,
+): StockHistoryPoint[] {
+  if (!quote || points.length === 0 || !Number.isFinite(quote.price)) return points;
+
+  const lastPoint = points[points.length - 1];
+  if (!lastPoint) return points;
+  if (lastPoint.value === quote.price) return points;
+
+  const quoteTime = getQuoteUnixTime(quote);
+  const quotePoint = {
+    time: quoteTime && quoteTime > lastPoint.time ? quoteTime : lastPoint.time,
+    value: quote.price,
+  };
+
+  return [...points.slice(0, -1), quotePoint];
+}
+
+function getQuoteUnixTime(quote: StockQuote) {
+  const parsed = new Date(quote.updatedAt).getTime();
+  if (!Number.isFinite(parsed)) return null;
+
+  return Math.floor(parsed / 1000);
 }
