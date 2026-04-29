@@ -4,14 +4,13 @@ import {
   listWatchlist,
   removeWatchlistItem,
 } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   const items = await listWatchlist(supabase, user.id);
 
   return NextResponse.json({ items });
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
   const body = (await request.json()) as { symbol?: string; name?: string };
   if (!body.symbol) return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   try {
     const item = await addWatchlistItem(supabase, user.id, body.symbol, body.name);
 
@@ -42,7 +41,7 @@ export async function DELETE(request: Request) {
   const symbol = searchParams.get("symbol");
   if (!symbol) return NextResponse.json({ error: "Symbol is required" }, { status: 400 });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   try {
     await removeWatchlistItem(supabase, user.id, symbol);
 

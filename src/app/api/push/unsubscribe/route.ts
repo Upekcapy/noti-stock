@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { removePushSubscription } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -10,7 +9,7 @@ export async function POST(request: Request) {
   const body = (await request.json()) as { endpoint?: string };
   if (!body.endpoint) return NextResponse.json({ error: "Endpoint is required" }, { status: 400 });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   await removePushSubscription(supabase, user.id, body.endpoint);
 
   return NextResponse.json({ ok: true });

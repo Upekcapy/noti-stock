@@ -12,7 +12,7 @@ import { normalizeSymbol } from "@/lib/utils";
 
 const now = () => new Date().toISOString();
 
-let watchlist: WatchlistItem[] = [
+const watchlist: WatchlistItem[] = [
   {
     id: "demo-watch-aapl",
     userId: "demo-user",
@@ -106,7 +106,7 @@ let watchlist: WatchlistItem[] = [
   },
 ];
 
-let alerts: PriceAlert[] = [
+const alerts: PriceAlert[] = [
   {
     id: "demo-alert-nvda",
     userId: "demo-user",
@@ -133,7 +133,7 @@ let alerts: PriceAlert[] = [
   },
 ];
 
-let notifications: NotificationHistoryItem[] = [
+const notifications: NotificationHistoryItem[] = [
   {
     id: "demo-note-aapl",
     userId: "demo-user",
@@ -149,7 +149,7 @@ let notifications: NotificationHistoryItem[] = [
   },
 ];
 
-let subscriptions: PushSubscriptionRecord[] = [];
+const subscriptions: PushSubscriptionRecord[] = [];
 
 export function listDemoWatchlist(userId: string) {
   return watchlist.filter((item) => item.userId === userId);
@@ -170,13 +170,12 @@ export function addDemoWatchlistItem(userId: string, symbolInput: string) {
     createdAt: now(),
   };
 
-  watchlist = [item, ...watchlist];
   return item;
 }
 
 export function removeDemoWatchlistItem(userId: string, symbolInput: string) {
-  const symbol = normalizeSymbol(symbolInput);
-  watchlist = watchlist.filter((item) => item.userId !== userId || item.symbol !== symbol);
+  normalizeSymbol(symbolInput);
+  void userId;
 }
 
 export function listDemoAlerts(userId: string) {
@@ -213,7 +212,6 @@ export function addDemoAlert(userId: string, input: AlertInput) {
     lastCheckedPrice: null,
   };
 
-  alerts = [alert, ...alerts];
   return alert;
 }
 
@@ -222,22 +220,15 @@ export function updateDemoAlert(
   id: string,
   patch: Partial<Pick<PriceAlert, "targetPrice" | "direction" | "status">>,
 ) {
-  let updated: PriceAlert | null = null;
+  const existing = alerts.find((alert) => alert.userId === userId && alert.id === id);
+  if (!existing) return null;
 
-  alerts = alerts.map((alert) => {
-    if (alert.userId !== userId || alert.id !== id) return alert;
-
-    updated = {
-      ...alert,
-      ...patch,
-      status: (patch.status ?? alert.status) as AlertStatus,
-      updatedAt: now(),
-    };
-
-    return updated;
-  });
-
-  return updated;
+  return {
+    ...existing,
+    ...patch,
+    status: (patch.status ?? existing.status) as AlertStatus,
+    updatedAt: now(),
+  };
 }
 
 export function deleteDemoAlert(userId: string, id: string) {
@@ -245,29 +236,13 @@ export function deleteDemoAlert(userId: string, id: string) {
 }
 
 export function markDemoAlertChecked(alertId: string, price: number) {
-  alerts = alerts.map((alert) => {
-    if (alert.id !== alertId) return alert;
-
-    return {
-      ...alert,
-      updatedAt: now(),
-      lastCheckedPrice: price,
-    };
-  });
+  void alertId;
+  void price;
 }
 
 export function markDemoAlertTriggered(alertId: string, price: number) {
-  alerts = alerts.map((alert) => {
-    if (alert.id !== alertId) return alert;
-
-    return {
-      ...alert,
-      status: "triggered",
-      triggeredAt: now(),
-      updatedAt: now(),
-      lastCheckedPrice: price,
-    };
-  });
+  void alertId;
+  void price;
 }
 
 export function listDemoNotifications(userId: string) {
@@ -285,7 +260,6 @@ export function addDemoNotification(
     createdAt: now(),
   };
 
-  notifications = [notification, ...notifications];
   return notification;
 }
 
@@ -294,36 +268,22 @@ export function upsertDemoSubscription(
   subscription: PushSubscriptionJSON,
   userAgent: string | null,
 ) {
-  const endpoint = subscription.endpoint ?? "";
-  const existing = subscriptions.find(
-    (item) => item.userId === userId && item.endpoint === endpoint,
-  );
-
-  if (existing) {
-    existing.subscription = subscription;
-    existing.userAgent = userAgent;
-    existing.updatedAt = now();
-    return existing;
-  }
-
   const record: PushSubscriptionRecord = {
     id: crypto.randomUUID(),
     userId,
-    endpoint,
+    endpoint: subscription.endpoint ?? "",
     subscription,
     userAgent,
     createdAt: now(),
     updatedAt: now(),
   };
 
-  subscriptions = [record, ...subscriptions];
   return record;
 }
 
 export function deleteDemoSubscription(userId: string, endpoint: string) {
-  subscriptions = subscriptions.filter(
-    (item) => item.userId !== userId || item.endpoint !== endpoint,
-  );
+  void userId;
+  void endpoint;
 }
 
 export function listDemoSubscriptions(userId: string) {

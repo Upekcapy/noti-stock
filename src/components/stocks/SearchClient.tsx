@@ -17,7 +17,13 @@ import type {
 } from "@/lib/types/notistock";
 import { formatDateTime, getAlertPrefillPath, normalizeSymbol } from "@/lib/utils";
 
-export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
+export function SearchClient({
+  initialSymbol,
+  isDemo = false,
+}: {
+  initialSymbol: string;
+  isDemo?: boolean;
+}) {
   const router = useRouter();
   const selectedSymbol = normalizeSymbol(initialSymbol);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
@@ -76,6 +82,18 @@ export function SearchClient({ initialSymbol }: { initialSymbol: string }) {
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       setMessage(data?.error ?? `Could not add ${normalizedStock.symbol}.`);
+      return;
+    }
+
+    const data = (await response.json().catch(() => null)) as { item?: WatchlistItem } | null;
+    const demoItem = data?.item;
+    if (isDemo && demoItem) {
+      setWatchlist((current) =>
+        current.some((item) => item.symbol === demoItem.symbol)
+          ? current
+          : [demoItem, ...current],
+      );
+      setMessage(`${normalizedStock.symbol} was added to your demo watchlist.`);
       return;
     }
 

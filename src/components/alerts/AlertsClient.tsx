@@ -18,13 +18,14 @@ import { cn, formatCurrency, formatDateTime, normalizeSymbol } from "@/lib/utils
 
 type QuoteStatus = "idle" | "checking" | "valid" | "invalid";
 type AlertMutationResponse = {
+  alert?: PriceAlert | null;
   error?: string;
   evaluation?: {
     triggered?: boolean;
   } | null;
 };
 
-export function AlertsClient() {
+export function AlertsClient({ isDemo = false }: { isDemo?: boolean }) {
   const searchParams = useSearchParams();
   const prefillSymbol = normalizeSymbol(searchParams.get("symbol") ?? "");
   const prefillTarget = normalizeTargetPrice(searchParams.get("target") ?? "");
@@ -158,12 +159,42 @@ export function AlertsClient() {
       return;
     }
 
-    setEditingId(null);
-    setSymbol("");
-    setTargetPrice("");
-    setDirection(null);
-    setQuote(null);
-    setQuoteStatus("idle");
+    const demoAlert = data.alert;
+    if (isDemo && demoAlert) {
+      setAlerts((current) => {
+        if (editingId) {
+          return current.map((alert) => (alert.id === demoAlert.id ? demoAlert : alert));
+        }
+
+        return current.some((alert) => alert.id === demoAlert.id)
+          ? current
+          : [demoAlert, ...current];
+      });
+      resetFormAfterSave();
+      setMessage(
+        data.evaluation?.triggered
+          ? "Demo alert triggered immediately."
+          : editingId
+            ? "Demo alert was updated."
+            : "Demo alert was created.",
+      );
+      return;
+    }
+
+    if (isDemo && editingId) {
+      setAlerts((current) =>
+        current.map((alert) =>
+          alert.id === editingId
+            ? { ...alert, targetPrice: targetNumber, direction, updatedAt: new Date().toISOString() }
+            : alert,
+        ),
+      );
+      resetFormAfterSave();
+      setMessage("Demo alert was updated.");
+      return;
+    }
+
+    resetFormAfterSave();
     await refresh();
     setMessage(
       data.evaluation?.triggered
@@ -172,6 +203,15 @@ export function AlertsClient() {
           ? "Alert was updated."
           : "Alert was created.",
     );
+  }
+
+  function resetFormAfterSave() {
+    setEditingId(null);
+    setSymbol("");
+    setTargetPrice("");
+    setDirection(null);
+    setQuote(null);
+    setQuoteStatus("idle");
   }
 
   function edit(alert: PriceAlert) {
@@ -198,16 +238,36 @@ export function AlertsClient() {
   }, []);
 
   async function updateStatus(id: string, status: AlertStatus) {
-    await fetch(`/api/alerts/${id}`, {
+    const response = await fetch(`/api/alerts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    const data = (await readJsonResponse<AlertMutationResponse>(response)) as AlertMutationResponse;
+    const demoAlert = data.alert;
+    if (isDemo && demoAlert) {
+      setAlerts((current) =>
+        current.map((alert) => (alert.id === demoAlert.id ? demoAlert : alert)),
+      );
+      return;
+    }
+    if (isDemo) {
+      setAlerts((current) =>
+        current.map((alert) =>
+          alert.id === id ? { ...alert, status, updatedAt: new Date().toISOString() } : alert,
+        ),
+      );
+      return;
+    }
     await refresh();
   }
 
   async function remove(id: string) {
     await fetch(`/api/alerts/${id}`, { method: "DELETE" });
+    if (isDemo) {
+      setAlerts((current) => current.filter((alert) => alert.id !== id));
+      return;
+    }
     await refresh();
   }
 

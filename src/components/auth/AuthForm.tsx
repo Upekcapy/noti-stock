@@ -17,6 +17,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [message, setMessage] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const isRegister = mode === "register";
   const waitingForEmailConfirmation = isRegister && Boolean(pendingEmail);
 
@@ -28,6 +29,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const supabase = createBrowserSupabaseClient();
 
     if (!supabase) {
+      setLoading(false);
       router.push("/dashboard");
       return;
     }
@@ -61,6 +63,26 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function handleDemoLogin() {
+    setMessage("");
+    setDemoLoading(true);
+
+    const response = await fetch("/api/demo/login", { method: "POST" });
+
+    setDemoLoading(false);
+
+    if (!response.ok) {
+      setMessage("Could not start the demo account. Try again in a moment.");
+      return;
+    }
+
+    const next = new URLSearchParams(window.location.search).get("next");
+    const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
+    router.push(safeNext);
     router.refresh();
   }
 
@@ -223,6 +245,25 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               {isRegister ? "Login" : "Register"}
             </Link>
           </p>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="text-center text-xs font-semibold uppercase text-slate-400">
+              Demo login:
+            </p>
+            <button
+              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={loading || demoLoading}
+            >
+              {demoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Demo Account
+              {!demoLoading ? <ArrowRight className="h-4 w-4" /> : null}
+            </button>
+            <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+              Explore NotiStock without creating an account. Demo changes reset on refresh.
+            </p>
+          </div>
         </section>
       </div>
     </div>

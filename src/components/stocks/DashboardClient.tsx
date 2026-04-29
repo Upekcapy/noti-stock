@@ -126,6 +126,19 @@ export function DashboardClient({ user }: { user: AppUser }) {
       return;
     }
 
+    const data = (await response.json().catch(() => null)) as { item?: WatchlistItem } | null;
+    const demoItem = data?.item;
+    if (user.isDemo && demoItem) {
+      const quote = await fetchStockQuote(demoItem.symbol);
+      setItems((current) =>
+        current.some((item) => item.symbol === demoItem.symbol)
+          ? current
+          : [{ ...demoItem, quote }, ...current],
+      );
+      setMessage(`${stock.symbol} was added to your demo watchlist.`);
+      return;
+    }
+
     await refresh();
     setMessage(`${stock.symbol} was added to your watchlist.`);
   }
@@ -140,6 +153,11 @@ export function DashboardClient({ user }: { user: AppUser }) {
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       setMessage(data?.error ?? `Could not remove ${symbol}.`);
+      return;
+    }
+
+    if (user.isDemo) {
+      setItems((current) => current.filter((item) => item.symbol !== symbol));
       return;
     }
 

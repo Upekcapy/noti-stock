@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { upsertPushSubscription } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -12,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Subscription endpoint is required" }, { status: 400 });
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   const record = await upsertPushSubscription(
     supabase,
     user.id,

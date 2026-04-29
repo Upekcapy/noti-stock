@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { evaluateAlertWithQuote } from "@/lib/alert-evaluator";
 import { deletePriceAlert, updatePriceAlert } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 import { getLiveStockQuote } from "@/lib/stocks";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { AlertDirection, AlertStatus } from "@/lib/types/notistock";
 
 export async function PATCH(
@@ -48,7 +47,7 @@ export async function PATCH(
     patch.status = body.status;
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   const alert = await updatePriceAlert(supabase, user.id, id, patch);
   const evaluation =
     alert?.status === "active"
@@ -70,7 +69,7 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   await deletePriceAlert(supabase, user.id, id);
 
   return NextResponse.json({ ok: true });

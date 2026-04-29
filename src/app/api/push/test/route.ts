@@ -4,9 +4,8 @@ import {
   listPushSubscriptions,
   removePushSubscription,
 } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/notifications";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatCurrency, getStockSearchPath } from "@/lib/utils";
 
 const TEST_STOCKS = [
@@ -23,7 +22,7 @@ export async function POST() {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createUserDataClient(user);
     const subscriptions = await listPushSubscriptions(supabase, user.id);
     const stock = TEST_STOCKS[Math.floor(Math.random() * TEST_STOCKS.length)] ?? TEST_STOCKS[0];
     const payload = {

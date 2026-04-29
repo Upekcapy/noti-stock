@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { AppUser } from "@/lib/types/notistock";
+
+export const DEMO_SESSION_COOKIE = "notistock_demo";
 
 export const demoUser: AppUser = {
   id: "demo-user",
@@ -11,6 +14,7 @@ export const demoUser: AppUser = {
 };
 
 export async function getCurrentUser(): Promise<AppUser | null> {
+  if (await hasDemoSession()) return demoUser;
   if (!isSupabaseConfigured) return demoUser;
 
   const supabase = await createServerSupabaseClient();
@@ -44,6 +48,17 @@ export async function requireCurrentUser() {
   }
 
   return user;
+}
+
+export async function createUserDataClient(user: AppUser) {
+  if (user.isDemo) return null;
+
+  return createServerSupabaseClient();
+}
+
+async function hasDemoSession() {
+  const cookieStore = await cookies();
+  return cookieStore.get(DEMO_SESSION_COOKIE)?.value === "1";
 }
 
 async function ensureUserProfile(

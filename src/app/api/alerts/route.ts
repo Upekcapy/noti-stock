@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { evaluateAlertWithQuote } from "@/lib/alert-evaluator";
 import { addPriceAlert, listAlerts } from "@/lib/app-data";
-import { getCurrentUser } from "@/lib/auth";
+import { createUserDataClient, getCurrentUser } from "@/lib/auth";
 import { getLiveStockQuote } from "@/lib/stocks";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { AlertDirection } from "@/lib/types/notistock";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createUserDataClient(user);
   const alerts = await listAlerts(supabase, user.id);
 
   return NextResponse.json({ alerts });
@@ -48,7 +47,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createUserDataClient(user);
     const alert = await addPriceAlert(supabase, user.id, {
       symbol: liveQuote.symbol,
       targetPrice,
