@@ -1,5 +1,6 @@
 "use client";
 
+import { FormEvent, useState } from "react";
 import {
   Bell,
   Home,
@@ -11,7 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { HeaderStockSearch } from "@/components/layout/HeaderStockSearch";
 import type { AppUser } from "@/lib/types/notistock";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,22 @@ export function AppShell({
   user: AppUser;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSigningOut(true);
+
+    try {
+      await fetch("/auth/signout", { method: "POST" });
+    } catch {
+      // Still return to the auth screen if the request is interrupted during navigation.
+    } finally {
+      router.replace("/login");
+      router.refresh();
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] text-slate-950">
@@ -91,13 +108,14 @@ export function AppShell({
               >
                 About me
               </Link>
-              <form action="/auth/signout" method="post">
+              <form action="/auth/signout" method="post" onSubmit={handleSignOut}>
                 <button
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={signingOut}
                   type="submit"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign out
+                  {signingOut ? "Signing out" : "Sign out"}
                 </button>
               </form>
             </div>
