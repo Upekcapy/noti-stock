@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEMO_SESSION_COOKIE } from "@/lib/auth";
+import { DEMO_SESSION_COOKIE } from "@/lib/auth-constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {

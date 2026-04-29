@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { DEMO_SESSION_COOKIE } from "@/lib/auth-constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { AppUser } from "@/lib/types/notistock";
-
-export const DEMO_SESSION_COOKIE = "notistock_demo";
 
 export const demoUser: AppUser = {
   id: "demo-user",

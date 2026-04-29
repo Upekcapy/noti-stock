@@ -1,11 +1,39 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { DEMO_SESSION_COOKIE } from "@/lib/auth-constants";
 import { env, isSupabaseConfigured } from "@/lib/env";
 
-const protectedPrefixes = ["/dashboard", "/stocks", "/alerts", "/notifications", "/settings"];
+const protectedPrefixes = [
+  "/about",
+  "/alerts",
+  "/dashboard",
+  "/notifications",
+  "/phone-setup",
+  "/pricing",
+  "/search",
+  "/settings",
+  "/stocks",
+];
 
 export async function proxy(request: NextRequest) {
   if (!isSupabaseConfigured) return NextResponse.next();
+
+  const hasDemoSession = request.cookies.get(DEMO_SESSION_COOKIE)?.value === "1";
+  const isAuthPage =
+    request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/register";
+  const isProtected = protectedPrefixes.some((prefix) =>
+    request.nextUrl.pathname.startsWith(prefix),
+  );
+
+  if (hasDemoSession) {
+    if (isAuthPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    if (isProtected) return NextResponse.next();
+  }
 
   let response = NextResponse.next({
     request,
@@ -30,10 +58,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isProtected = protectedPrefixes.some((prefix) =>
-    request.nextUrl.pathname.startsWith(prefix),
-  );
-
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -41,7 +65,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if ((request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/register") && user) {
+  if (isAuthPage && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
