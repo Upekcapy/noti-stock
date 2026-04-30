@@ -88,9 +88,15 @@ The app exposes `GET /api/cron/check-alerts` for scheduled alert checks. Vercel 
 Add these GitHub repository secrets before relying on scheduled alert checks:
 
 ```bash
-NOTISTOCK_CRON_URL=https://your-production-domain.com/api/cron/check-alerts
 CRON_SECRET=your-secret
+NOTISTOCK_CRON_URL=https://your-production-domain.com/api/cron/check-alerts
 ```
+
+`NOTISTOCK_CRON_URL` is optional for the default deployment because the workflow
+falls back to `https://noti-stock.vercel.app/api/cron/check-alerts`. If you set
+it, use either the full endpoint above or the production domain, such as
+`https://noti-stock.vercel.app` or `noti-stock.vercel.app`. The workflow trims
+accidental quotes, angle brackets, and whitespace before calling the URL.
 
 The `CRON_SECRET` value must match the production environment variable in Vercel. The workflow sends it as:
 

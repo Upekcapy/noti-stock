@@ -12,10 +12,44 @@ jobs:
 
     steps:
       - name: Trigger alert check
+        shell: bash
         run: |
-          curl --fail --show-error --silent --max-time 60 --retry 2 --retry-delay 10 \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            "${NOTISTOCK_CRON_URL}"
+          raw_url="${NOTISTOCK_CRON_URL:-https://noti-stock.vercel.app/api/cron/check-alerts}"
+          cron_url="${raw_url//$'\r'/}"
+          cron_url="${cron_url#"${cron_url%%[![:space:]]*}"}"
+          cron_url="${cron_url%"${cron_url##*[![:space:]]}"}"
+          cron_url="${cron_url%\"}"
+          cron_url="${cron_url#\"}"
+          cron_url="${cron_url%\'}"
+          cron_url="${cron_url#\'}"
+          cron_url="${cron_url%>}"
+          cron_url="${cron_url#<}"
+
+          if [[ "${cron_url}" != http://* && "${cron_url}" != https://* && "${cron_url}" == *.* ]]; then
+            cron_url="https://${cron_url}"
+          fi
+
+          if [[ ! "${cron_url}" =~ ^https?://[^[:space:]]+$ ]]; then
+            echo "::error::NOTISTOCK_CRON_URL must be a valid URL or domain. Use https://noti-stock.vercel.app/api/cron/check-alerts, noti-stock.vercel.app, or leave it empty to use the default."
+            exit 1
+          fi
+
+          if [[ "${cron_url}" != *"/api/cron/check-alerts"* ]]; then
+            cron_url="${cron_url%/}/api/cron/check-alerts"
+          fi
+
+          cron_secret="${CRON_SECRET//$'\r'/}"
+          cron_secret="${cron_secret//$'\n'/}"
+
+          if [[ -z "${cron_secret}" ]]; then
+            echo "::error::CRON_SECRET GitHub repository secret is empty. It must match the CRON_SECRET environment variable in Vercel."
+            exit 1
+          fi
+
+          echo "Triggering alert check at ${cron_url}"
+          curl --fail-with-body --show-error --silent --max-time 60 --retry 2 --retry-delay 10 \
+            -H "Authorization: Bearer ${cron_secret}" \
+            "${cron_url}"
         env:
           NOTISTOCK_CRON_URL: ${{ secrets.NOTISTOCK_CRON_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
