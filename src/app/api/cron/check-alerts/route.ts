@@ -29,18 +29,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let phase = "start";
+
   try {
+    phase = "parse request";
     const url = new URL(request.url);
     const force = url.searchParams.get("force") === "1";
 
+    phase = "check market window";
     if (!force && !isMarketCheckWindow(new Date())) {
       return NextResponse.json({ checked: 0, triggered: 0, skipped: "market_closed" });
     }
 
+    phase = "create Supabase admin client";
     const supabase = createSupabaseAdminClient();
+
+    phase = "load active alerts";
     const alerts = await listActiveAlertsForCron(supabase);
+
+    phase = "fetch stock quotes";
     const symbols = Array.from(new Set(alerts.map((alert) => alert.symbol)));
     const { quoteFailures, quotesBySymbol } = await getQuotesForAlerts(symbols);
+
+    phase = "evaluate alerts";
     const alertResults = await mapWithConcurrency(
       alerts,
       ALERT_CONCURRENCY,
@@ -93,9 +104,9 @@ export async function GET(request: Request) {
       failures: [...quoteFailures, ...alertFailures].slice(0, 10),
     });
   } catch (error) {
-    console.error("Cron alert check failed", error);
+    console.error("Cron alert check failed", { phase, error });
     return NextResponse.json(
-      { error: "Alert check failed", detail: formatError(error) },
+      { error: "Alert check failed", phase, detail: formatError(error) },
       { status: 500 },
     );
   }
