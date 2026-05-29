@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env, isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/env";
 
-const ADMIN_FETCH_TIMEOUT_MS = 12_000;
-const ADMIN_FETCH_RETRY_DELAYS_MS = [300, 1_000];
+const ADMIN_FETCH_TIMEOUT_MS = 6_000;
+const ADMIN_FETCH_RETRY_DELAYS_MS = [300, 900, 1_500];
 
 export async function createServerSupabaseClient() {
   if (!isSupabaseConfigured) return null;
@@ -53,6 +53,7 @@ const retryingAdminFetch: typeof fetch = async (input, init) => {
     try {
       const response = await fetch(input, {
         ...init,
+        cache: init?.cache ?? "no-store",
         signal: controller.signal,
       });
 
